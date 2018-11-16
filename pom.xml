@@ -46,19 +46,19 @@
 		<profile>
 			<id>Development</id>
 			<properties>
-				<logfile>/1m5/logs/clearnet-server.log</logfile>
+				<logfile>clearnet-server.log</logfile>
 			</properties>
 		</profile>
 		<profile>
 			<id>QA</id>
 			<properties>
-				<logfile>/1m5/logs/clearnet-server.log</logfile>
+				<logfile>clearnet-server.log</logfile>
 			</properties>
 		</profile>
 		<profile>
 			<id>Production</id>
 			<properties>
-				<logfile>/1m5/logs/clearnet-server.log</logfile>
+				<logfile>clearnet-server.log</logfile>
 			</properties>
 		</profile>
 	</profiles>
@@ -80,7 +80,7 @@
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
-			<version>9.2.24.v20180105</version>
+			<version>[9.3.24.v20180605,)</version>
 		</dependency>
 		<!-- Test -->
 		<dependency>
