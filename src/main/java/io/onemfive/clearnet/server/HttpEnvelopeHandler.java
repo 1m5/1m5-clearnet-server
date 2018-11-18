@@ -33,7 +33,7 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
 
     private static Logger LOG = Logger.getLogger(HttpEnvelopeHandler.class.getName());
 
-    private ClearnetServerSensor sensor;
+    protected ClearnetServerSensor sensor;
     private Map<Long,ClientHold> requests = new HashMap<>();
     private Byte id;
 
@@ -72,7 +72,7 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
         // Add Routes Last first as it's a stack
         DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, envelope);
 
-        sensor.send(envelope); // asynchronous call upon; returns upon reaching Message Channel's queue in Service Bus
+        route(envelope); // asynchronous call upon; returns upon reaching Message Channel's queue in Service Bus
 
         if(DLC.getErrorMessages(envelope).size() > 0) {
             // Just 500 for now
@@ -85,6 +85,10 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
             LOG.info("Holding HTTP Request for up to 30 seconds waiting for internal asynch response...");
             clientHold.hold(30 * 1000); // hold for 30 seconds or until interrupted
         }
+    }
+
+    protected void route(Envelope envelope) {
+        sensor.send(envelope);
     }
 
     public void reply(Envelope e) {
