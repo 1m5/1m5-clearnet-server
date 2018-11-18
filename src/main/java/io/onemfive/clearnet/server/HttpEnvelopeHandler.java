@@ -1,6 +1,5 @@
 package io.onemfive.clearnet.server;
 
-import com.sun.org.apache.regexp.internal.RE;
 import io.onemfive.sensors.SensorsService;
 import io.onemfive.data.DocumentMessage;
 import io.onemfive.data.Envelope;
