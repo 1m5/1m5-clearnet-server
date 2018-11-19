@@ -103,9 +103,12 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         }
     }
 
-    protected void route(Envelope envelope) {
+    protected void route(Envelope e) {
+        String command = e.getCommandPath();
+        switch(command) {
 
-        sensor.send(envelope);
+        }
+        sensor.send(e);
     }
 
     public void reply(Envelope e) {
@@ -225,13 +228,18 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         return e;
     }
 
-    protected void unpackEnvelope(Envelope envelope, HttpServletResponse response) {
+    protected void unpackEnvelope(Envelope e, HttpServletResponse response) {
+        String command = e.getCommandPath();
+        switch(command) {
+
+        }
+        String json = "";
         response.setContentType("application/json");
         try {
-            response.getWriter().print(DLC.getContent(envelope));
+            response.getWriter().print(json);
             response.setStatus(200);
-        } catch (IOException e) {
-            LOG.warning(e.getLocalizedMessage());
+        } catch (IOException ex) {
+            LOG.warning(ex.getLocalizedMessage());
             response.setStatus(500);
         }
     }
