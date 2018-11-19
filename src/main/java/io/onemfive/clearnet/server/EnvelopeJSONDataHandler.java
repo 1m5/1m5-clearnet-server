@@ -15,10 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 
 /**
@@ -39,6 +36,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     private Map<Long,ClientHold> requests = new HashMap<>();
     private Byte id;
     private String serviceName;
+    private String[] parameters;
 
     public EnvelopeJSONDataHandler() {}
 
@@ -49,6 +47,10 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 
     public void setServiceName(String serviceName) {
         this.serviceName = serviceName;
+    }
+
+    public void setParameters(String[] parameters) {
+        this.parameters = parameters;
     }
 
     /**

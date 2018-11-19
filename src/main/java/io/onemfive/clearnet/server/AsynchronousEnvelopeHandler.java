@@ -11,5 +11,6 @@ import org.eclipse.jetty.server.Handler;
 public interface AsynchronousEnvelopeHandler extends Handler {
     void setSensor(ClearnetServerSensor sensor);
     void setServiceName(String serviceName);
+    void setParameters(String[] parameters);
     void reply(Envelope envelope);
 }

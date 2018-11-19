@@ -152,6 +152,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                         dataHandler = (AsynchronousEnvelopeHandler) Class.forName(dataHandlerStr).newInstance();
                         dataHandler.setSensor(this);
                         dataHandler.setServiceName(name);
+                        dataHandler.setParameters(m);
                     } catch (InstantiationException e) {
                         LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
                         continue;
