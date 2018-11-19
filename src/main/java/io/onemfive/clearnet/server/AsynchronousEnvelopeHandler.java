@@ -8,6 +8,6 @@ import org.eclipse.jetty.server.Handler;
  *
  * @author objectorange
  */
-public interface AsynchronousHandler extends Handler {
+public interface AsynchronousEnvelopeHandler extends Handler {
     void reply(Envelope envelope);
 }

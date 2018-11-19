@@ -5,7 +5,7 @@ import io.onemfive.data.DocumentMessage;
 import io.onemfive.data.Envelope;
 import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.eclipse.jetty.server.handler.DefaultHandler;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -13,6 +13,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -29,17 +31,19 @@ import java.util.logging.Logger;
  *
  * @author objectorange
  */
-public class HttpEnvelopeHandler extends AbstractHandler implements AsynchronousHandler {
+public class EnvelopeJSONDataHandler extends DefaultHandler implements AsynchronousEnvelopeHandler {
 
-    private static Logger LOG = Logger.getLogger(HttpEnvelopeHandler.class.getName());
+    private static Logger LOG = Logger.getLogger(EnvelopeJSONDataHandler.class.getName());
 
     protected ClearnetServerSensor sensor;
     private Map<Long,ClientHold> requests = new HashMap<>();
     private Byte id;
+    private String serviceName;
 
-    public HttpEnvelopeHandler(ClearnetServerSensor sensor) {
+    public EnvelopeJSONDataHandler(ClearnetServerSensor sensor, String serviceName) {
         this.sensor = sensor;
         id = sensor.registerHandler(this);
+        this.serviceName = serviceName;
     }
 
     /**
@@ -58,7 +62,14 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
      */
     @Override
     public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        LOG.info("HTTP Handler called; target="+target);
+        LOG.info("HTTP Handler called; target: "+target);
+        if("/".equals(target)) {
+            response.setContentType("text/html");
+            response.getWriter().print("<html><body>"+serviceName+" Available</body></html>");
+            response.setStatus(200);
+            baseRequest.setHandled(true);
+            return;
+        }
         int verifyStatus = verifyRequest(target, request);
         if(verifyStatus != 200) {
             response.setStatus(verifyStatus);
@@ -69,7 +80,7 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
         ClientHold clientHold = new ClientHold(target, baseRequest, request, response, envelope);
         requests.put(envelope.getId(), clientHold);
 
-        // Add Routes Last first as it's a stack
+//         Add Routes Last first as it's a stack
         DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, envelope);
 
         route(envelope); // asynchronous call upon; returns upon reaching Message Channel's queue in Service Bus
@@ -95,6 +106,7 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
         LOG.info("Looking up request envelope for internal response...");
         ClientHold hold = requests.get(e.getId());
         unpackEnvelope(e, hold.getResponse());
+        hold.baseRequest.setHandled(true);
         LOG.info("Waking sleeping request thread to return response to caller...");
         hold.wake(); // Interrupt sleep to allow thread to return
         LOG.info("Unwinded request call with response.");
@@ -110,9 +122,12 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
         Envelope e = Envelope.documentFactory();
         // Must set id in header for asynchronous support
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
-
-        if(target != null) {
-            e.setCommandPath(target);
+        e.setCommandPath(target);
+        try {
+            URL url = new URL("http://127.0.0.1"+target+".json");
+            e.setURL(url);
+        } catch (MalformedURLException e1) {
+            LOG.warning(e1.getLocalizedMessage());
         }
 
         String method = request.getMethod();
@@ -147,55 +162,57 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
             }
         }
 
-        LOG.info("Content-Type: "+e.getHeader("Content-Type"));
-        try {
-            Collection<Part> parts = request.getParts();
-            String contentType;
-            String name;
-            String fileName;
-            InputStream is;
-            StringBuffer b;
-            int k = 0;
-            for(Part part : parts) {
-                contentType = part.getContentType();
-                name = part.getName();
-                fileName = part.getSubmittedFileName();
-                is = part.getInputStream();
-                if(is != null) {
-                    b = new StringBuffer();
-                    int i;
-                    char c;
-                    while ((i = is.read()) != -1) {
-                        c = (char) i;
-                        b.append(c);
-                    }
-                    String content = b.toString();
-                    LOG.info("Incoming file content: "+content);
-                    if(k==0)
-                        ((DocumentMessage)e.getMessage()).data.get(k++).put(DLC.CONTENT, content);
-                    else {
-                        Map<String,Object> d = new HashMap<>();
-                        d.put(Envelope.HEADER_CONTENT_TYPE, contentType);
-                        d.put(DLC.CONTENT, content);
-                        ((DocumentMessage) e.getMessage()).data.add(d);
+        if(e.getContentType() != null && "multipart/form-data".equals(e.getContentType())) {
+            try {
+                Collection<Part> parts = request.getParts();
+                String contentType;
+                String name;
+                String fileName;
+                InputStream is;
+                StringBuffer b;
+                int k = 0;
+                for (Part part : parts) {
+                    contentType = part.getContentType();
+                    name = part.getName();
+                    fileName = part.getSubmittedFileName();
+                    is = part.getInputStream();
+                    if (is != null) {
+                        b = new StringBuffer();
+                        int i;
+                        char c;
+                        while ((i = is.read()) != -1) {
+                            c = (char) i;
+                            b.append(c);
+                        }
+                        String content = b.toString();
+                        LOG.info("Incoming file content: " + content);
+                        if (k == 0)
+                            ((DocumentMessage) e.getMessage()).data.get(k++).put(DLC.CONTENT, content);
+                        else {
+                            Map<String, Object> d = new HashMap<>();
+                            d.put(Envelope.HEADER_CONTENT_TYPE, contentType);
+                            d.put(DLC.CONTENT, content);
+                            ((DocumentMessage) e.getMessage()).data.add(d);
+                        }
                     }
                 }
+            } catch (Exception e1) {
+                LOG.warning(e1.getLocalizedMessage());
+                e1.printStackTrace();
             }
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        } catch (ServletException e2) {
-            e2.printStackTrace();
         }
 
         String query = request.getQueryString();
-        LOG.info("Incoming query: "+query);
-        Map<String,String> queryMap = new HashMap<>();
-        String[] nvps = query.split("&");
-        for(String nvpStr : nvps) {
-            String[] nvp = nvpStr.split("=");
-            queryMap.put(nvp[0],nvp[1]);
+        if(query!=null) {
+            LOG.info("Incoming query: "+query);
+            Map<String,String> queryMap = new HashMap<>();
+            String[] nvps = query.split("&");
+            for (String nvpStr : nvps) {
+                String[] nvp = nvpStr.split("=");
+                queryMap.put(nvp[0], nvp[1]);
+            }
+            DLC.addData(Map.class, queryMap, e);
         }
-        DLC.addData(Map.class,queryMap,e);
         e.setExternal(true);
 
         return e;
@@ -207,6 +224,7 @@ public class HttpEnvelopeHandler extends AbstractHandler implements Asynchronous
             response.getWriter().print(DLC.getContent(envelope));
             response.setStatus(200);
         } catch (IOException e) {
+            LOG.warning(e.getLocalizedMessage());
             response.setStatus(500);
         }
     }
