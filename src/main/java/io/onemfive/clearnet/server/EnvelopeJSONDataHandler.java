@@ -131,6 +131,8 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         Envelope e = Envelope.documentFactory();
         // Must set id in header for asynchronous support
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
+
+        // Set path
         e.setCommandPath(target);
         try {
             // This is required to ensure the SensorManager knows to return the reply to the ClearnetServerSensor (ends with .json)
@@ -140,6 +142,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             LOG.warning(e1.getLocalizedMessage());
         }
 
+        // Populate method
         String method = request.getMethod();
         LOG.info("Incoming method: "+method);
         if(method != null) {
@@ -154,6 +157,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             e.setAction(Envelope.Action.VIEW);
         }
 
+        // Populate headers
         Enumeration<String> headerNames = request.getHeaderNames();
         while(headerNames.hasMoreElements()) {
             String headerName = headerNames.nextElement();
@@ -172,6 +176,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             }
         }
 
+        // Get file content if sent
         if(e.getContentType() != null && "multipart/form-data".equals(e.getContentType())) {
             try {
                 Collection<Part> parts = request.getParts();
@@ -212,6 +217,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             }
         }
 
+        // Get query parameters if present
         String query = request.getQueryString();
         if(query!=null) {
             LOG.info("Incoming query: "+query);
@@ -224,6 +230,12 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             DLC.addData(Map.class, queryMap, e);
         }
         e.setExternal(true);
+
+        // Get post parameters if present and place as content
+        Map<String,String[]> m = request.getParameterMap();
+        if(m != null) {
+            DLC.addContent(m, e);
+        }
 
         return e;
     }
