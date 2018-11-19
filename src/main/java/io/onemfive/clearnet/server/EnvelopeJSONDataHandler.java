@@ -40,9 +40,14 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     private Byte id;
     private String serviceName;
 
-    public EnvelopeJSONDataHandler(ClearnetServerSensor sensor, String serviceName) {
+    public EnvelopeJSONDataHandler() {}
+
+    public void setSensor(ClearnetServerSensor sensor) {
         this.sensor = sensor;
         id = sensor.registerHandler(this);
+    }
+
+    public void setServiceName(String serviceName) {
         this.serviceName = serviceName;
     }
 
@@ -99,6 +104,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     protected void route(Envelope envelope) {
+
         sensor.send(envelope);
     }
 
@@ -124,6 +130,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
         e.setCommandPath(target);
         try {
+            // This is required to ensure the SensorManager knows to return the reply to the ClearnetServerSensor (ends with .json)
             URL url = new URL("http://127.0.0.1"+target+".json");
             e.setURL(url);
         } catch (MalformedURLException e1) {

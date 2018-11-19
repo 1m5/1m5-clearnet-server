@@ -40,6 +40,8 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     private Properties properties;
 
+    public ClearnetServerSensor() {}
+
     public ClearnetServerSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
         super(sensorManager, sensitivity, priority);
     }
@@ -97,6 +99,8 @@ public final class ClearnetServerSensor extends BaseSensor {
     @Override
     public boolean start(Properties p) {
         LOG.info("Starting...");
+        LOG.info("Using properties: ");
+        Config.logProperties(p);
         try {
             properties = Config.loadFromClasspath("clearnet-server.config", p, false);
         } catch (Exception e) {
@@ -105,7 +109,10 @@ public final class ClearnetServerSensor extends BaseSensor {
 
         if("true".equals(properties.getProperty(Config.PROP_UI))) {
             // Start HTTP Server for 1M5 UI
-            AsynchronousEnvelopeHandler dataHandler = new EnvelopeJSONDataHandler(this, "1M5 Data Service");
+            AsynchronousEnvelopeHandler dataHandler = new EnvelopeJSONDataHandler();
+            dataHandler.setSensor(this);
+            dataHandler.setServiceName("1M5-Data-Service");
+
             ContextHandler context = new ContextHandler();
             context.setContextPath("/");
             context.setHandler(dataHandler);
@@ -117,7 +124,9 @@ public final class ClearnetServerSensor extends BaseSensor {
 
         if(properties.getProperty(SERVERS_CONFIG)!=null) {
             String serversConfig = properties.getProperty(SERVERS_CONFIG);
-            String[] servers = serversConfig.split("|");
+            LOG.info("Building servers configuration: "+serversConfig);
+            String[] servers = serversConfig.split(":");
+            LOG.info("Number of servers to start: "+servers.length);
             for(String s : servers) {
                 String[] m = s.split(",");
                 String name = m[0];
@@ -141,6 +150,8 @@ public final class ClearnetServerSensor extends BaseSensor {
                 if(dataHandlerStr!=null) { // optional
                     try {
                         dataHandler = (AsynchronousEnvelopeHandler) Class.forName(dataHandlerStr).newInstance();
+                        dataHandler.setSensor(this);
+                        dataHandler.setServiceName(name);
                     } catch (InstantiationException e) {
                         LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
                         continue;

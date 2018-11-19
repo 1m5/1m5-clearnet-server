@@ -9,5 +9,7 @@ import org.eclipse.jetty.server.Handler;
  * @author objectorange
  */
 public interface AsynchronousEnvelopeHandler extends Handler {
+    void setSensor(ClearnetServerSensor sensor);
+    void setServiceName(String serviceName);
     void reply(Envelope envelope);
 }
