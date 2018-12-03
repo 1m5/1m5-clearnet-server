@@ -1,5 +1,7 @@
 package io.onemfive.clearnet.server;
 
+import io.onemfive.data.EventMessage;
+import io.onemfive.data.util.JSONParser;
 import io.onemfive.sensors.SensorsService;
 import io.onemfive.data.DocumentMessage;
 import io.onemfive.data.Envelope;
@@ -70,7 +72,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     @Override
     public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         LOG.info("HTTP Handler called; target: "+target);
-        if("/".equals(target)) {
+        if("/test".equals(target)) {
             response.setContentType("text/html");
             response.getWriter().print("<html><body>"+serviceName+" Available</body></html>");
             response.setStatus(200);
@@ -87,7 +89,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         ClientHold clientHold = new ClientHold(target, baseRequest, request, response, envelope);
         requests.put(envelope.getId(), clientHold);
 
-//         Add Routes Last first as it's a stack
+        // Add Routes Last first as it's a stack
         DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, envelope);
 
         route(envelope); // asynchronous call upon; returns upon reaching Message Channel's queue in Service Bus
@@ -239,11 +241,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     protected void unpackEnvelope(Envelope e, HttpServletResponse response) {
-        String command = e.getCommandPath();
-        switch(command) {
-
-        }
-        String json = "";
+        String json = (String)JSONParser.parse(DLC.getContent(e));
         response.setContentType("application/json");
         try {
             response.getWriter().print(json);
