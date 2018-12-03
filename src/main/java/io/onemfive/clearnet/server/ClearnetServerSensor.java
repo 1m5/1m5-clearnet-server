@@ -92,7 +92,7 @@ public final class ClearnetServerSensor extends BaseSensor {
             sensorManager.suspend(e);
             return false;
         }
-
+        handler.reply(e);
         return true;
     }
 
