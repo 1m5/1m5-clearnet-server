@@ -106,10 +106,6 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     protected void route(Envelope e) {
-        String command = e.getCommandPath();
-        switch(command) {
-
-        }
         sensor.send(e);
     }
 
