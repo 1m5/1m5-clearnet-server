@@ -122,6 +122,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
             ContextHandler dataContext = new ContextHandler();
             dataContext.setContextPath("/data");
+            dataContext.setHandler(dataHandler);
 
             HandlerCollection handlers = new HandlerCollection();
             handlers.addHandler(staticContext);
