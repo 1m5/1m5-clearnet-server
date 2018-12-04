@@ -1,10 +1,8 @@
 package io.onemfive.clearnet.server;
 
-import io.onemfive.data.EventMessage;
+import io.onemfive.data.*;
 import io.onemfive.data.util.JSONParser;
 import io.onemfive.sensors.SensorsService;
-import io.onemfive.data.DocumentMessage;
-import io.onemfive.data.Envelope;
 import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -39,6 +37,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     private Byte id;
     private String serviceName;
     private String[] parameters;
+    protected Map<String,Session> activeSessions = new HashMap<>();
 
     public EnvelopeJSONDataHandler() {}
 
@@ -85,7 +84,28 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             baseRequest.setHandled(true);
             return;
         }
-        Envelope envelope = parseEnvelope(target, request);
+
+        // Clean out old sessions
+        long now = System.currentTimeMillis();
+        List<Session> expiredSessions = new ArrayList<>();
+        for(Session session : activeSessions.values()) {
+            if(session.getLastRequestTime() + now > session.getMaxSession())
+                expiredSessions.add(session);
+        }
+        for(Session session : expiredSessions) {
+            activeSessions.remove(session.getId());
+        }
+
+        // Check for new sessions and add to active users when new
+        String sessionId = request.getSession().getId();
+        LOG.info("Session ID: "+sessionId);
+        if(activeSessions.get(sessionId) == null) {
+            activeSessions.put(sessionId, new Session(sessionId));
+        } else {
+            activeSessions.get(sessionId).setLastRequestTime(now);
+        }
+
+        Envelope envelope = parseEnvelope(target, request, sessionId);
         ClientHold clientHold = new ClientHold(target, baseRequest, request, response, envelope);
         requests.put(envelope.getId(), clientHold);
 
@@ -112,9 +132,23 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     public void reply(Envelope e) {
-        LOG.info("Looking up request envelope for internal response...");
         ClientHold hold = requests.get(e.getId());
-        unpackEnvelope(e, hold.getResponse());
+        HttpServletResponse response = hold.getResponse();
+        LOG.info("Updating session status from response...");
+        String sessionId = (String)e.getHeader(Session.class.getName());
+        Session activeSession = activeSessions.get(sessionId);
+        if(activeSession==null) {
+            // session expired before response received so kill
+            LOG.warning("Expired session before response received: sessionId="+sessionId);
+            respond("{httpErrorCode=401}", "application/json", response, 401);
+        } else {
+            DID activeDID = activeSession.getDid();
+            DID eDID = e.getDID();
+            if(!activeSession.isAuthenticated() && eDID.getAuthenticated())
+                activeDID.setAuthenticated(true);
+            LOG.info("Looking up request envelope for internal response...");
+            respond(unpackEnvelopeContent(e), "application/json", response, 200);
+        }
         hold.baseRequest.setHandled(true);
         LOG.info("Waking sleeping request thread to return response to caller...");
         hold.wake(); // Interrupt sleep to allow thread to return
@@ -126,11 +160,13 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         return 200;
     }
 
-    protected Envelope parseEnvelope(String target, HttpServletRequest request) {
+    protected Envelope parseEnvelope(String target, HttpServletRequest request, String sessionId) {
         LOG.info("Parsing request into Envelope...");
+
         Envelope e = Envelope.documentFactory();
         // Must set id in header for asynchronous support
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
+        e.setHeader(Session.class.getName(), sessionId);
 
         // Set path
         e.setCommandPath(target);
@@ -240,12 +276,16 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         return e;
     }
 
-    protected void unpackEnvelope(Envelope e, HttpServletResponse response) {
-        String json = (String)JSONParser.parse(DLC.getContent(e));
-        response.setContentType("application/json");
+    protected String unpackEnvelopeContent(Envelope e) {
+        String json = JSONParser.toString(((JSONSerializable)DLC.getContent(e)).toMap());
+        return json;
+    }
+
+    protected void respond(String body, String contentType, HttpServletResponse response, int code) {
+        response.setContentType(contentType);
         try {
-            response.getWriter().print(json);
-            response.setStatus(200);
+            response.getWriter().print(body);
+            response.setStatus(code);
         } catch (IOException ex) {
             LOG.warning(ex.getLocalizedMessage());
             response.setStatus(500);
