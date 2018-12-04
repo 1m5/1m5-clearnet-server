@@ -107,6 +107,11 @@
 					<include>**/*.crt</include>
 				</includes>
 			</resource>
+			<resource>
+				<directory>../1m5-ui/build</directory>
+				<filtering>false</filtering>
+				<targetPath>io/onemfive/clearnet/server/ui</targetPath>
+			</resource>
 		</resources>
 		<pluginManagement>
 			<plugins>

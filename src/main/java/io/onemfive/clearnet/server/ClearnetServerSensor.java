@@ -8,6 +8,7 @@ import io.onemfive.data.Envelope;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.server.handler.ResourceHandler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -26,7 +27,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     /**
      * Configuration of Servers in the form:
-     *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler|n,...}
+     *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler, relative resource directory|n,...}
      */
     public static final String SERVERS_CONFIG = "1m5.sensors.clearnet.server.config";
 
@@ -108,6 +109,7 @@ public final class ClearnetServerSensor extends BaseSensor {
         }
 
         if("true".equals(properties.getProperty(Config.PROP_UI))) {
+            String webDir = this.getClass().getClassLoader().getResource("io/onemfive/clearnet/server/ui").toExternalForm();
             // Start HTTP Server for 1M5 UI
             AsynchronousEnvelopeHandler dataHandler = new EnvelopeJSONDataHandler();
             dataHandler.setSensor(this);
@@ -116,6 +118,12 @@ public final class ClearnetServerSensor extends BaseSensor {
             ContextHandler context = new ContextHandler();
             context.setContextPath("/");
             context.setHandler(dataHandler);
+            context.setResourceBase(webDir);
+
+//            ResourceHandler resource = new ResourceHandler();
+//            resource.setResourceBase(webDir);
+//            resource.setDirectoriesListed(false);
+
             boolean launchOnStart = "true".equals(properties.getProperty(Config.PROP_UI_LAUNCH_ON_START));
             // 571 BC - Birth of Laozi, Chinese Philosopher and Writer, author of Tao Te Ching
             if(!startServer("1M5", 5710, context, launchOnStart))
@@ -147,12 +155,21 @@ public final class ClearnetServerSensor extends BaseSensor {
 
                 String dataHandlerStr = m[3];
                 AsynchronousEnvelopeHandler dataHandler = null;
+
+                String resourceDirectory = m[4];
+                String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
+
+                ContextHandler context = new ContextHandler();
+                context.setContextPath("/");
+                context.setResourceBase(webDir);
+
                 if(dataHandlerStr!=null) { // optional
                     try {
                         dataHandler = (AsynchronousEnvelopeHandler) Class.forName(dataHandlerStr).newInstance();
                         dataHandler.setSensor(this);
                         dataHandler.setServiceName(name);
                         dataHandler.setParameters(m);
+                        context.setHandler(dataHandler);
                     } catch (InstantiationException e) {
                         LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
                         continue;
