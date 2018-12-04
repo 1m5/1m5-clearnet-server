@@ -8,6 +8,7 @@ import io.onemfive.data.Envelope;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 
@@ -116,16 +117,18 @@ public final class ClearnetServerSensor extends BaseSensor {
             dataHandler.setSensor(this);
             dataHandler.setServiceName("1M5-Data-Service");
 
-            ContextHandler staticContext = new ContextHandler();
-            staticContext.setContextPath("/");
-            staticContext.setResourceBase(webDir);
+            ResourceHandler resourceHandler = new ResourceHandler();
+            resourceHandler.setDirectoriesListed(true);
+            resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
+            resourceHandler.setResourceBase(webDir);
 
             ContextHandler dataContext = new ContextHandler();
             dataContext.setContextPath("/data");
             dataContext.setHandler(dataHandler);
 
             HandlerCollection handlers = new HandlerCollection();
-            handlers.addHandler(staticContext);
+            handlers.addHandler(resourceHandler);
+            handlers.addHandler(new DefaultHandler());
             handlers.addHandler(dataContext);
 
             boolean launchOnStart = "true".equals(properties.getProperty(Config.PROP_UI_LAUNCH_ON_START));
@@ -163,15 +166,17 @@ public final class ClearnetServerSensor extends BaseSensor {
                 String resourceDirectory = m[4];
                 String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
 
-                ContextHandler staticContext = new ContextHandler();
-                staticContext.setContextPath("/");
-                staticContext.setResourceBase(webDir);
+                ResourceHandler resourceHandler = new ResourceHandler();
+                resourceHandler.setDirectoriesListed(true);
+                resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
+                resourceHandler.setResourceBase(webDir);
 
                 ContextHandler dataContext = new ContextHandler();
                 dataContext.setContextPath("/data");
 
                 HandlerCollection handlers = new HandlerCollection();
-                handlers.addHandler(staticContext);
+                handlers.addHandler(resourceHandler);
+                handlers.addHandler(new DefaultHandler());
                 handlers.addHandler(dataContext);
 
                 if(dataHandlerStr!=null) { // optional
