@@ -8,6 +8,7 @@ import io.onemfive.data.Envelope;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 
 import java.io.IOException;
@@ -115,18 +116,20 @@ public final class ClearnetServerSensor extends BaseSensor {
             dataHandler.setSensor(this);
             dataHandler.setServiceName("1M5-Data-Service");
 
-            ContextHandler context = new ContextHandler();
-            context.setContextPath("/");
-            context.setHandler(dataHandler);
-            context.setResourceBase(webDir);
+            ContextHandler staticContext = new ContextHandler();
+            staticContext.setContextPath("/");
+            staticContext.setResourceBase(webDir);
 
-//            ResourceHandler resource = new ResourceHandler();
-//            resource.setResourceBase(webDir);
-//            resource.setDirectoriesListed(false);
+            ContextHandler dataContext = new ContextHandler();
+            dataContext.setContextPath("/data");
+
+            HandlerCollection handlers = new HandlerCollection();
+            handlers.addHandler(staticContext);
+            handlers.addHandler(dataContext);
 
             boolean launchOnStart = "true".equals(properties.getProperty(Config.PROP_UI_LAUNCH_ON_START));
             // 571 BC - Birth of Laozi, Chinese Philosopher and Writer, author of Tao Te Ching
-            if(!startServer("1M5", 5710, context, launchOnStart))
+            if(!startServer("1M5", 5710, handlers, launchOnStart))
                 return false;
         }
 
@@ -159,9 +162,16 @@ public final class ClearnetServerSensor extends BaseSensor {
                 String resourceDirectory = m[4];
                 String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
 
-                ContextHandler context = new ContextHandler();
-                context.setContextPath("/");
-                context.setResourceBase(webDir);
+                ContextHandler staticContext = new ContextHandler();
+                staticContext.setContextPath("/");
+                staticContext.setResourceBase(webDir);
+
+                ContextHandler dataContext = new ContextHandler();
+                dataContext.setContextPath("/data");
+
+                HandlerCollection handlers = new HandlerCollection();
+                handlers.addHandler(staticContext);
+                handlers.addHandler(dataContext);
 
                 if(dataHandlerStr!=null) { // optional
                     try {
@@ -169,7 +179,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                         dataHandler.setSensor(this);
                         dataHandler.setServiceName(name);
                         dataHandler.setParameters(m);
-                        context.setHandler(dataHandler);
+                        dataContext.setHandler(dataHandler);
                     } catch (InstantiationException e) {
                         LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
                         continue;
@@ -182,7 +192,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                     }
                 }
 
-                if(!startServer(name, port, dataHandler, launchOnStart)) {
+                if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
                 }
             }
