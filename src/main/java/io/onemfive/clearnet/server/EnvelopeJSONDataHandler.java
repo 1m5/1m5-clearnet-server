@@ -89,7 +89,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         long now = System.currentTimeMillis();
         List<Session> expiredSessions = new ArrayList<>();
         for(Session session : activeSessions.values()) {
-            if(session.getLastRequestTime() + now > session.getMaxSession())
+            if(session.getLastRequestTime() + now > Session.SESSION_INACTIVITY_INTERVAL * 1000)
                 expiredSessions.add(session);
         }
         for(Session session : expiredSessions) {
@@ -100,6 +100,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         String sessionId = request.getSession().getId();
         LOG.info("Session ID: "+sessionId);
         if(activeSessions.get(sessionId) == null) {
+            request.getSession().setMaxInactiveInterval(Session.SESSION_INACTIVITY_INTERVAL);
             activeSessions.put(sessionId, new Session(sessionId));
         } else {
             activeSessions.get(sessionId).setLastRequestTime(now);
@@ -144,7 +145,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         } else {
             DID activeDID = activeSession.getDid();
             DID eDID = e.getDID();
-            if(!activeSession.isAuthenticated() && eDID.getAuthenticated())
+            if(!activeSession.getAuthenticated() && eDID.getAuthenticated())
                 activeDID.setAuthenticated(true);
             LOG.info("Looking up request envelope for internal response...");
             respond(unpackEnvelopeContent(e), "application/json", response, 200);

@@ -9,10 +9,11 @@ import io.onemfive.data.DID;
  */
 public class Session {
 
+    public static int SESSION_INACTIVITY_INTERVAL = 60 * 60; // 60 minutes
+
     private String id;
     private DID did = new DID();
     private long lastRequestTime = System.currentTimeMillis();
-    private long maxSession = 60 * 60 * 1000; // 60 minutes
     private boolean authenticated = false;
 
     public Session(String id) {
@@ -35,15 +36,7 @@ public class Session {
         this.lastRequestTime = lastRequestTime;
     }
 
-    public long getMaxSession() {
-        return maxSession;
-    }
-
-    public void setMaxSession(long maxSession) {
-        this.maxSession = maxSession;
-    }
-
-    public boolean isAuthenticated() {
+    public boolean getAuthenticated() {
         return authenticated;
     }
 
