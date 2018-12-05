@@ -118,8 +118,8 @@ public final class ClearnetServerSensor extends BaseSensor {
             dataHandler.setServiceName("1M5-Data-Service");
 
             ResourceHandler resourceHandler = new ResourceHandler();
-            resourceHandler.setDirectoriesListed(true);
-            resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
+            resourceHandler.setDirectoriesListed(false);
+//            resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
             resourceHandler.setResourceBase(webDir);
 
             ContextHandler dataContext = new ContextHandler();
@@ -167,8 +167,8 @@ public final class ClearnetServerSensor extends BaseSensor {
                 String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
 
                 ResourceHandler resourceHandler = new ResourceHandler();
-                resourceHandler.setDirectoriesListed(true);
-                resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
+                resourceHandler.setDirectoriesListed(false);
+//                resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
                 resourceHandler.setResourceBase(webDir);
 
                 ContextHandler dataContext = new ContextHandler();
