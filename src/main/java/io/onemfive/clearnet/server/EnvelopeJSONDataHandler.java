@@ -2,6 +2,7 @@ package io.onemfive.clearnet.server;
 
 import io.onemfive.data.*;
 import io.onemfive.data.util.JSONParser;
+import io.onemfive.sensors.SensorRequest;
 import io.onemfive.sensors.SensorsService;
 import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Request;
@@ -110,7 +111,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         ClientHold clientHold = new ClientHold(target, baseRequest, request, response, envelope);
         requests.put(envelope.getId(), clientHold);
 
-        // Add Routes Last first as it's a stack
+        // Add Routes Last first as it's a stack: Setup for return call
         DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, envelope);
 
         route(envelope); // asynchronous call upon; returns upon reaching Message Channel's queue in Service Bus
@@ -165,12 +166,14 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         LOG.info("Parsing request into Envelope...");
 
         Envelope e = Envelope.documentFactory();
+        // Flag as LOW for HTTP - this is required to ensure ClearnetServerSensor is selected in reply
+        e.setSensitivity(Envelope.Sensitivity.LOW);
         // Must set id in header for asynchronous support
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
         e.setHeader(Session.class.getName(), sessionId);
 
         // Set path
-        e.setCommandPath(target);
+        e.setCommandPath(target.startsWith("/")?target.substring(1):target); // strip leading slash if present
         try {
             // This is required to ensure the SensorManager knows to return the reply to the ClearnetServerSensor (ends with .json)
             URL url = new URL("http://127.0.0.1"+target+".json");
