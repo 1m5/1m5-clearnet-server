@@ -11,6 +11,7 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.session.SessionHandler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -127,6 +128,7 @@ public final class ClearnetServerSensor extends BaseSensor {
             dataContext.setHandler(dataHandler);
 
             HandlerCollection handlers = new HandlerCollection();
+            handlers.addHandler(new SessionHandler());
             handlers.addHandler(dataContext);
             handlers.addHandler(resourceHandler);
             handlers.addHandler(new DefaultHandler());
@@ -175,6 +177,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                 dataContext.setContextPath("/data/*");
 
                 HandlerCollection handlers = new HandlerCollection();
+                handlers.addHandler(new SessionHandler());
                 handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
                 handlers.addHandler(new DefaultHandler());
