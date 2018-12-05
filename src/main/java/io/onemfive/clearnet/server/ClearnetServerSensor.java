@@ -123,13 +123,13 @@ public final class ClearnetServerSensor extends BaseSensor {
             resourceHandler.setResourceBase(webDir);
 
             ContextHandler dataContext = new ContextHandler();
-            dataContext.setContextPath("/data");
+            dataContext.setContextPath("/data/*");
             dataContext.setHandler(dataHandler);
 
             HandlerCollection handlers = new HandlerCollection();
+            handlers.addHandler(dataContext);
             handlers.addHandler(resourceHandler);
             handlers.addHandler(new DefaultHandler());
-            handlers.addHandler(dataContext);
 
             boolean launchOnStart = "true".equals(properties.getProperty(Config.PROP_UI_LAUNCH_ON_START));
             // 571 BC - Birth of Laozi, Chinese Philosopher and Writer, author of Tao Te Ching
@@ -172,12 +172,12 @@ public final class ClearnetServerSensor extends BaseSensor {
                 resourceHandler.setResourceBase(webDir);
 
                 ContextHandler dataContext = new ContextHandler();
-                dataContext.setContextPath("/data");
+                dataContext.setContextPath("/data/*");
 
                 HandlerCollection handlers = new HandlerCollection();
+                handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
                 handlers.addHandler(new DefaultHandler());
-                handlers.addHandler(dataContext);
 
                 if(dataHandlerStr!=null) { // optional
                     try {
