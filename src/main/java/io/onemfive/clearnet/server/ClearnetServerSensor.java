@@ -39,8 +39,8 @@ public final class ClearnetServerSensor extends BaseSensor {
     private boolean isTest = false;
 
     private final List<Server> servers = new ArrayList<>();
-    private final Map<Byte,AsynchronousEnvelopeHandler> handlers = new HashMap<>();
-    private Byte nextHandlerId = 0;
+    private final Map<String,AsynchronousEnvelopeHandler> handlers = new HashMap<>();
+    private int nextHandlerId = 1;
 
     private Properties properties;
 
@@ -50,9 +50,10 @@ public final class ClearnetServerSensor extends BaseSensor {
         super(sensorManager, sensitivity, priority);
     }
 
-    Byte registerHandler(AsynchronousEnvelopeHandler handler) {
-        handlers.put(nextHandlerId++, handler);
-        return nextHandlerId;
+    String registerHandler(AsynchronousEnvelopeHandler handler) {
+        String nextHandlerIdStr = String.valueOf(nextHandlerId++);
+        handlers.put(nextHandlerIdStr, handler);
+        return nextHandlerIdStr;
     }
 
     @Override
@@ -84,7 +85,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     @Override
     public boolean reply(Envelope e) {
-        Byte handlerId = (Byte)e.getHeader(HANDLER_ID);
+        String handlerId = (String)e.getHeader(HANDLER_ID);
         if(handlerId == null) {
             LOG.warning("Handler id="+handlerId+" not found in Envelope header. Ensure this is placed in the Envelope header="+HANDLER_ID);
             sensorManager.suspend(e);
@@ -120,7 +121,6 @@ public final class ClearnetServerSensor extends BaseSensor {
 
             ResourceHandler resourceHandler = new ResourceHandler();
             resourceHandler.setDirectoriesListed(false);
-//            resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
             resourceHandler.setResourceBase(webDir);
 
             ContextHandler dataContext = new ContextHandler();

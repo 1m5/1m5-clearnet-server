@@ -35,7 +35,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 
     protected ClearnetServerSensor sensor;
     private Map<Long,ClientHold> requests = new HashMap<>();
-    private Byte id;
+    private String id;
     private String serviceName;
     private String[] parameters;
     protected Map<String,Session> activeSessions = new HashMap<>();
@@ -144,11 +144,14 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             LOG.warning("Expired session before response received: sessionId="+sessionId);
             respond("{httpErrorCode=401}", "application/json", response, 401);
         } else {
-            DID activeDID = activeSession.getDid();
+            LOG.info("Active session found");
             DID eDID = e.getDID();
-            if(!activeSession.getAuthenticated() && eDID.getAuthenticated())
-                activeDID.setAuthenticated(true);
-            LOG.info("Looking up request envelope for internal response...");
+            LOG.info("DID in header: "+eDID);
+            if(!activeSession.getAuthenticated() && eDID.getAuthenticated()) {
+                LOG.info("Updating active session and DID to authenticated.");
+                activeSession.setAuthenticated(true);
+                activeSession.getDid().setAuthenticated(true);
+            }
             respond(unpackEnvelopeContent(e), "application/json", response, 200);
         }
         hold.baseRequest.setHandled(true);
@@ -281,11 +284,13 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     protected String unpackEnvelopeContent(Envelope e) {
+        LOG.info("Unpacking Content Map to JSON");
         String json = JSONParser.toString(((JSONSerializable)DLC.getContent(e)).toMap());
         return json;
     }
 
     protected void respond(String body, String contentType, HttpServletResponse response, int code) {
+        LOG.info("Returning response...");
         response.setContentType(contentType);
         try {
             response.getWriter().print(body);
