@@ -162,25 +162,33 @@ public final class ClearnetServerSensor extends BaseSensor {
                 String launchOnStartStr = m[2];
                 boolean launchOnStart = "true".equals(launchOnStartStr);
 
-                String dataHandlerStr = m[3];
+                String spaStr = m[3];
+                boolean spa = "true".equals(spaStr);
+
+                String dataHandlerStr = m[4];
                 AsynchronousEnvelopeHandler dataHandler = null;
 
-                String resourceDirectory = m[4];
+                String resourceDirectory = m[5];
                 String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
 
-                ResourceHandler resourceHandler = new ResourceHandler();
-                resourceHandler.setDirectoriesListed(false);
-//                resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
-                resourceHandler.setResourceBase(webDir);
+                SessionHandler sessionHandler = new SessionHandler();
 
                 ContextHandler dataContext = new ContextHandler();
                 dataContext.setContextPath("/data/*");
 
+                ResourceHandler resourceHandler = new ResourceHandler();
+                resourceHandler.setDirectoriesListed(false);
+                resourceHandler.setWelcomeFiles(new String[]{"index.html"});
+                resourceHandler.setResourceBase(webDir);
+
+                DefaultHandler defaultHandler = new DefaultHandler();
+
                 HandlerCollection handlers = new HandlerCollection();
-                handlers.addHandler(new SessionHandler());
+                handlers.addHandler(sessionHandler);
                 handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
                 handlers.addHandler(new DefaultHandler());
+                if(spa) handlers.addHandler(new SPAHandler());
 
                 if(dataHandlerStr!=null) { // optional
                     try {
