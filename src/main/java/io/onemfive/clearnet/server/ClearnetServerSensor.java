@@ -185,6 +185,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
                 HandlerCollection handlers = new HandlerCollection();
                 handlers.addHandler(sessionHandler);
+                if(spa) handlers.addHandler(new SPAHandler());
                 handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
                 handlers.addHandler(new DefaultHandler());

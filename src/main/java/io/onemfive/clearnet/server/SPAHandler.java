@@ -1,5 +1,6 @@
 package io.onemfive.clearnet.server;
 
+import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 
 import org.eclipse.jetty.server.Request;
@@ -16,11 +17,29 @@ import java.util.logging.Logger;
  *
  * @author objectorange
  */
-public class SPAHandler extends ErrorHandler {
+public class SPAHandler extends AbstractHandler {
 
     private static Logger LOG = Logger.getLogger(SPAHandler.class.getName());
     private boolean firstRequest = true;
 
+    @Override
+    public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException
+    {
+        //If request not coming for DataServiceHandler, redirect all requests to the "/". Bc UI is already handling routes.
+        String requestUri = request.getRequestURI();
+    //    if(!requestUri.startsWith("/data")){
+        if(requestUri.equals("/login") ||  requestUri.equals("/logout") ){
+            requestUri = "/" ;
+            String uri = request.getScheme() + "://" +
+                    request.getServerName() +
+                    ":" + request.getLocalPort() +
+                    requestUri +
+                    (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+            response.sendRedirect(uri);
+        }
+    }
+
+    /*
     @Override
     public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException
     {
@@ -52,6 +71,8 @@ public class SPAHandler extends ErrorHandler {
             super.handle(target, baseRequest, request, response);
         }
     }
+
+    */
 
 //    @Override
 //    protected void writeErrorPageBody(HttpServletRequest request, Writer writer, int code, String message, boolean showStacks) throws IOException
