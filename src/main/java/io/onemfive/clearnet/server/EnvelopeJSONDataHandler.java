@@ -99,7 +99,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 
         // Check for new sessions and add to active users when new
         String sessionId = request.getSession().getId();
-        LOG.info("Session ID: "+sessionId);
+//        LOG.info("Session ID: "+sessionId);
         if(activeSessions.get(sessionId) == null) {
             request.getSession().setMaxInactiveInterval(Session.SESSION_INACTIVITY_INTERVAL);
             activeSessions.put(sessionId, new Session(sessionId));
@@ -124,7 +124,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             requests.remove(envelope.getId());
         } else {
             // Hold Thread until response or 30 seconds
-            LOG.info("Holding HTTP Request for up to 30 seconds waiting for internal asynch response...");
+//            LOG.info("Holding HTTP Request for up to 30 seconds waiting for internal asynch response...");
             clientHold.hold(30 * 1000); // hold for 30 seconds or until interrupted
         }
     }
@@ -136,7 +136,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     public void reply(Envelope e) {
         ClientHold hold = requests.get(e.getId());
         HttpServletResponse response = hold.getResponse();
-        LOG.info("Updating session status from response...");
+//        LOG.info("Updating session status from response...");
         String sessionId = (String)e.getHeader(Session.class.getName());
         Session activeSession = activeSessions.get(sessionId);
         if(activeSession==null) {
@@ -144,20 +144,20 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             LOG.warning("Expired session before response received: sessionId="+sessionId);
             respond("{httpErrorCode=401}", "application/json", response, 401);
         } else {
-            LOG.info("Active session found");
+//            LOG.info("Active session found");
             DID eDID = e.getDID();
-            LOG.info("DID in header: "+eDID);
+//            LOG.info("DID in header: "+eDID);
             if(!activeSession.getAuthenticated() && eDID.getAuthenticated()) {
-                LOG.info("Updating active session and DID to authenticated.");
+//                LOG.info("Updating active session and DID to authenticated.");
                 activeSession.setAuthenticated(true);
                 activeSession.getDid().setAuthenticated(true);
             }
             respond(unpackEnvelopeContent(e), "application/json", response, 200);
         }
         hold.baseRequest.setHandled(true);
-        LOG.info("Waking sleeping request thread to return response to caller...");
+//        LOG.info("Waking sleeping request thread to return response to caller...");
         hold.wake(); // Interrupt sleep to allow thread to return
-        LOG.info("Unwinded request call with response.");
+//        LOG.info("Unwinded request call with response.");
     }
 
     protected int verifyRequest(String target, HttpServletRequest request) {
@@ -166,7 +166,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     protected Envelope parseEnvelope(String target, HttpServletRequest request, String sessionId) {
-        LOG.info("Parsing request into Envelope...");
+//        LOG.info("Parsing request into Envelope...");
 
         Envelope e = Envelope.documentFactory();
         // Flag as LOW for HTTP - this is required to ensure ClearnetServerSensor is selected in reply
@@ -187,7 +187,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 
         // Populate method
         String method = request.getMethod();
-        LOG.info("Incoming method: "+method);
+//        LOG.info("Incoming method: "+method);
         if(method != null) {
             switch (method.toUpperCase()) {
                 case "GET": e.setAction(Envelope.Action.VIEW);break;
@@ -215,7 +215,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                 } else {
                     e.setHeader(headerName + Integer.toString(i++), headerValue);
                 }
-                LOG.info("Incoming header:value="+headerName+":"+headerValue);
+//                LOG.info("Incoming header:value="+headerName+":"+headerValue);
             }
         }
 
@@ -243,7 +243,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                             b.append(c);
                         }
                         String content = b.toString();
-                        LOG.info("Incoming file content: " + content);
+//                        LOG.info("Incoming file content: " + content);
                         if (k == 0)
                             ((DocumentMessage) e.getMessage()).data.get(k++).put(DLC.CONTENT, content);
                         else {
@@ -263,7 +263,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         // Get query parameters if present
         String query = request.getQueryString();
         if(query!=null) {
-            LOG.info("Incoming query: "+query);
+//            LOG.info("Incoming query: "+query);
             Map<String,String> queryMap = new HashMap<>();
             String[] nvps = query.split("&");
             for (String nvpStr : nvps) {
@@ -284,13 +284,13 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     }
 
     protected String unpackEnvelopeContent(Envelope e) {
-        LOG.info("Unpacking Content Map to JSON");
+//        LOG.info("Unpacking Content Map to JSON");
         String json = JSONParser.toString(((JSONSerializable)DLC.getContent(e)).toMap());
         return json;
     }
 
     protected void respond(String body, String contentType, HttpServletResponse response, int code) {
-        LOG.info("Returning response...");
+//        LOG.info("Returning response...");
         response.setContentType(contentType);
         try {
             response.getWriter().print(body);

@@ -104,7 +104,6 @@ public final class ClearnetServerSensor extends BaseSensor {
     @Override
     public boolean start(Properties p) {
         LOG.info("Starting...");
-        LOG.info("Using properties: ");
         Config.logProperties(p);
         try {
             properties = Config.loadFromClasspath("clearnet-server.config", p, false);
@@ -181,15 +180,12 @@ public final class ClearnetServerSensor extends BaseSensor {
                 resourceHandler.setWelcomeFiles(new String[]{"index.html"});
                 resourceHandler.setResourceBase(webDir);
 
-                DefaultHandler defaultHandler = new DefaultHandler();
-
                 HandlerCollection handlers = new HandlerCollection();
                 handlers.addHandler(sessionHandler);
                 if(spa) handlers.addHandler(new SPAHandler());
                 handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
                 handlers.addHandler(new DefaultHandler());
-//                if(spa) handlers.addHandler(new SPAHandler());
 
                 if(dataHandlerStr!=null) { // optional
                     try {
@@ -225,7 +221,7 @@ public final class ClearnetServerSensor extends BaseSensor {
         server.setHandler(dataHandler);
         try {
             server.start();
-            LOG.info(server.dump());
+//            LOG.info(server.dump());
             servers.add(server);
             LOG.info("HTTP Server for "+name+" UI started on 127.0.0.1:"+port);
         } catch (Exception e) {
@@ -283,6 +279,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     @Override
     public boolean restart() {
+        LOG.info("Restarting...");
         for(Server server : servers) {
             try {
                 server.stop();
@@ -291,11 +288,13 @@ public final class ClearnetServerSensor extends BaseSensor {
                 LOG.warning(e.getLocalizedMessage());
             }
         }
+        LOG.info("Restarted.");
         return true;
     }
 
     @Override
     public boolean shutdown() {
+        LOG.info("Shutting down...");
         for(Server server : servers) {
             try {
                 server.stop();
@@ -303,6 +302,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                 LOG.warning(e.getLocalizedMessage());
             }
         }
+        LOG.info("Shutdown.");
         return true;
     }
 
