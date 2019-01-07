@@ -85,6 +85,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     @Override
     public boolean reply(Envelope e) {
+        LOG.info("Reply to ClearnetServerSensor; forwarding to registered handler...");
         String handlerId = (String)e.getHeader(HANDLER_ID);
         if(handlerId == null) {
             LOG.warning("Handler id="+handlerId+" not found in Envelope header. Ensure this is placed in the Envelope header="+HANDLER_ID);
