@@ -136,7 +136,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     public void reply(Envelope e) {
         ClientHold hold = requests.get(e.getId());
         HttpServletResponse response = hold.getResponse();
-//        LOG.info("Updating session status from response...");
+        LOG.info("Updating session status from response...");
         String sessionId = (String)e.getHeader(Session.class.getName());
         Session activeSession = activeSessions.get(sessionId);
         if(activeSession==null) {
@@ -144,20 +144,20 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             LOG.warning("Expired session before response received: sessionId="+sessionId);
             respond("{httpErrorCode=401}", "application/json", response, 401);
         } else {
-//            LOG.info("Active session found");
+            LOG.info("Active session found");
             DID eDID = e.getDID();
-//            LOG.info("DID in header: "+eDID);
+            LOG.info("DID in header: "+eDID);
             if(!activeSession.getAuthenticated() && eDID.getAuthenticated()) {
-//                LOG.info("Updating active session and DID to authenticated.");
+                LOG.info("Updating active session and DID to authenticated.");
                 activeSession.setAuthenticated(true);
                 activeSession.getDid().setAuthenticated(true);
             }
             respond(unpackEnvelopeContent(e), "application/json", response, 200);
         }
         hold.baseRequest.setHandled(true);
-//        LOG.info("Waking sleeping request thread to return response to caller...");
+        LOG.info("Waking sleeping request thread to return response to caller...");
         hold.wake(); // Interrupt sleep to allow thread to return
-//        LOG.info("Unwinded request call with response.");
+        LOG.info("Unwinded request call with response.");
     }
 
     protected int verifyRequest(String target, HttpServletRequest request) {
