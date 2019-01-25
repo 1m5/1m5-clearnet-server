@@ -1,10 +1,18 @@
 package io.onemfive.clearnet.server;
 
-import io.onemfive.core.Config;
-import io.onemfive.core.util.SystemVersion;
-import io.onemfive.sensors.BaseSensor;
-import io.onemfive.sensors.SensorManager;
-import io.onemfive.data.Envelope;
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.logging.Logger;
+
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -13,10 +21,11 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.session.SessionHandler;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.*;
-import java.util.logging.Logger;
+import io.onemfive.core.Config;
+import io.onemfive.core.util.SystemVersion;
+import io.onemfive.data.Envelope;
+import io.onemfive.sensors.BaseSensor;
+import io.onemfive.sensors.SensorManager;
 
 /**
  * Sets up HTTP server listeners.
@@ -254,7 +263,16 @@ public final class ClearnetServerSensor extends BaseSensor {
             cmd = new String[]{"open " + url};
         } else if(SystemVersion.isWindows()) {
             LOG.info("OS is Windows.");
-            cmd = new String[]{"rundll32 url.dll,FileProtocolHandler " + url};
+            try {
+				Desktop.getDesktop().browse(new URL(url).toURI());
+			} catch (MalformedURLException e) {
+                LOG.severe("MalformedURLException caught while launching browser for windows. Error message: "+e.getLocalizedMessage());
+			} catch (IOException e) {
+                LOG.severe("IOException caught while launching browser for windows. Error message: "+e.getLocalizedMessage());
+			} catch (URISyntaxException e) {
+                LOG.severe("URISyntaxException caught while launching browser for windows. Error message: "+e.getLocalizedMessage());
+			}
+            return;            
         } else {
             LOG.warning("Unable to determine OS therefore unable to launch a browser.");
             return;
