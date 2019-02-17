@@ -1,8 +1,8 @@
 package io.onemfive.clearnet.server;
 
 import io.onemfive.data.*;
+import io.onemfive.data.content.Content;
 import io.onemfive.data.util.JSONParser;
-import io.onemfive.sensors.SensorRequest;
 import io.onemfive.sensors.SensorsService;
 import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Request;
@@ -13,6 +13,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -228,24 +229,35 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                 String contentType;
                 String name;
                 String fileName;
+                long size = 0;
                 InputStream is;
-                StringBuffer b;
+                ByteArrayOutputStream b;
                 int k = 0;
                 for (Part part : parts) {
-                    contentType = part.getContentType();
+                    String msg = "Downloading... {";
                     name = part.getName();
+                    msg += "\n\tparamName="+name;
                     fileName = part.getSubmittedFileName();
+                    msg += "\n\tfileName="+fileName;
+                    contentType = part.getContentType();
+                    msg += "\n\tcontentType="+contentType;
+                    size = part.getSize();
+                    msg += "\n\tsize="+size+"\n}";
+                    LOG.info(msg);
+                    if(size > 1000000) {
+                        // 1Mb
+                        LOG.warning("Downloading of file with size="+size+" prevented. Max size is 1Mb.");
+                        return e;
+                    }
                     is = part.getInputStream();
                     if (is != null) {
-                        b = new StringBuffer();
-                        int i;
-                        char c;
-                        while ((i = is.read()) != -1) {
-                            c = (char) i;
-                            b.append(c);
+                        b = new ByteArrayOutputStream();
+                        int nRead;
+                        byte[] bucket = new byte[16384];
+                        while ((nRead = is.read(bucket, 0, bucket.length)) != -1) {
+                            b.write(bucket, 0, nRead);
                         }
-                        String content = b.toString();
-//                        LOG.info("Incoming file content: " + content);
+                        Content content = Content.buildContent(b.toByteArray(), contentType, fileName, true, true);
                         if (k == 0)
                             ((DocumentMessage) e.getMessage()).data.get(k++).put(DLC.CONTENT, content);
                         else {
@@ -258,7 +270,6 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                 }
             } catch (Exception e1) {
                 LOG.warning(e1.getLocalizedMessage());
-                e1.printStackTrace();
             }
         }
 
