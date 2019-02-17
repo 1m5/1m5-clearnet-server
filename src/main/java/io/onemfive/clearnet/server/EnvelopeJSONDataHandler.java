@@ -8,6 +8,7 @@ import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 
+import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -220,7 +221,8 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         }
 
         // Get file content if sent
-        if(e.getContentType() != null && "multipart/form-data".equals(e.getContentType())) {
+        if(e.getContentType() != null && e.getContentType().startsWith("multipart/form-data")) {
+        	request.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, new MultipartConfigElement(""));
             try {
                 Collection<Part> parts = request.getParts();
                 String contentType;
@@ -276,7 +278,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 
         // Get post parameters if present and place as content
         Map<String,String[]> m = request.getParameterMap();
-        if(m != null) {
+        if(m != null && !m.isEmpty()) {
             DLC.addContent(m, e);
         }
 
