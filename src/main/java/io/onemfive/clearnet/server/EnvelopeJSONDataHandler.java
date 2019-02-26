@@ -1,12 +1,16 @@
 package io.onemfive.clearnet.server;
 
-import io.onemfive.data.*;
+import io.onemfive.data.DID;
+import io.onemfive.data.DocumentMessage;
+import io.onemfive.data.Envelope;
+import io.onemfive.data.JSONSerializable;
 import io.onemfive.data.content.Content;
+import io.onemfive.data.util.DLC;
 import io.onemfive.data.util.JSONParser;
 import io.onemfive.sensors.SensorsService;
-import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.DefaultHandler;
+import sun.misc.BASE64Encoder;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
@@ -257,7 +261,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                         while ((nRead = is.read(bucket, 0, bucket.length)) != -1) {
                             b.write(bucket, 0, nRead);
                         }
-                        Content content = Content.buildContent(b.toByteArray(), contentType, fileName, true, true);
+                        Content content = Content.buildContent(new BASE64Encoder().encode(b.toByteArray()).getBytes(), contentType, fileName, true, true);
                         if (k == 0)
                             ((DocumentMessage) e.getMessage()).data.get(k++).put(DLC.CONTENT, content);
                         else {
