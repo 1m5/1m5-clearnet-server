@@ -261,11 +261,12 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                             b.write(bucket, 0, nRead);
                         }
                         Content content = Content.buildContent(b.toByteArray(), contentType, fileName, true, false, true);
-                        if(fileName!=null)
-                            content.setName(fileName);
-                        if (k == 0)
-                            ((DocumentMessage) e.getMessage()).data.get(k++).put(DLC.CONTENT, content);
-                        else {
+                        content.setSize(size);
+                        if (k == 0) {
+                            Map<String, Object> d = ((DocumentMessage) e.getMessage()).data.get(k++);
+                            d.put(Envelope.HEADER_CONTENT_TYPE, contentType);
+                            d.put(DLC.CONTENT, content);
+                        } else {
                             Map<String, Object> d = new HashMap<>();
                             d.put(Envelope.HEADER_CONTENT_TYPE, contentType);
                             d.put(DLC.CONTENT, content);
