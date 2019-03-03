@@ -260,7 +260,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
                         while ((nRead = is.read(bucket, 0, bucket.length)) != -1) {
                             b.write(bucket, 0, nRead);
                         }
-                        Content content = Content.buildContent(b.toByteArray(), contentType, fileName, true, false, true);
+                        Content content = Content.buildContent(b.toByteArray(), contentType, fileName, true, true);
                         content.setSize(size);
                         if (k == 0) {
                             Map<String, Object> d = ((DocumentMessage) e.getMessage()).data.get(k++);
