@@ -16,9 +16,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
@@ -279,6 +277,13 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
             }
         }
 
+        //Get post formData params
+        String postFormBody = getPostRequestFormData(request);
+        if(!postFormBody.isEmpty()){
+            Map<String, Object> bodyMap = (Map<String, Object>) JSONParser.parse(postFormBody);
+            DLC.addData(Map.class, bodyMap, e);
+        }
+
         // Get query parameters if present
         String query = request.getQueryString();
         if(query!=null) {
@@ -306,6 +311,34 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 //        LOG.info("Unpacking Content Map to JSON");
         String json = JSONParser.toString(((JSONSerializable)DLC.getContent(e)).toMap());
         return json;
+    }
+
+    public String getPostRequestFormData(HttpServletRequest request)  {
+        StringBuilder formData = new StringBuilder();
+        BufferedReader bufferedReader = null;
+        try {
+            InputStream inputStream = request.getInputStream();
+            if (inputStream != null) {
+                bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                char[] charBuffer = new char[128];
+                int bytesRead = -1;
+                while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
+                    formData.append(charBuffer, 0, bytesRead);
+                }
+            }
+        } catch (IOException ex) {
+            LOG.warning(ex.getLocalizedMessage());
+        } finally {
+            if (bufferedReader != null) {
+                try {
+                    bufferedReader.close();
+                } catch (IOException ex) {
+                    LOG.warning(ex.getLocalizedMessage());
+                }
+            }
+        }
+
+        return formData.toString();
     }
 
     protected void respond(String body, String contentType, HttpServletResponse response, int code) {
