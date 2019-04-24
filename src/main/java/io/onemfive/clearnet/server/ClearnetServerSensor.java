@@ -48,8 +48,7 @@ public final class ClearnetServerSensor extends BaseSensor {
      */
     public static final String SERVERS_CONFIG = "1m5.sensors.clearnet.server.config";
     /**
-     * Configuration of WebSockets in the form:
-     *      name, port, launch on start, concrete implementation of
+     * Configuration of WebSockets in the form: enable (true|false)
      */
     public static final String WEBSOCKETS_CONFIG = "1m5.sensors.clearnet.server.websockets.config";
 
@@ -214,7 +213,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                 resourceHandler.setResourceBase(webDir);
 
                 ContextHandler wsContext = null;
-                if(sockets!=null && sockets.length > index) {
+                if(sockets!=null && sockets.length > index && "true".equals(sockets[index])) {
                     WebSocketHandler wsHandler = new WebSocketHandler() {
                         @Override
                         public void configure(WebSocketServletFactory factory) {
