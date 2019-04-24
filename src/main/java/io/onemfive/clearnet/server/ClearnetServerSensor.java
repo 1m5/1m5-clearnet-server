@@ -26,6 +26,11 @@ import io.onemfive.core.util.SystemVersion;
 import io.onemfive.data.Envelope;
 import io.onemfive.sensors.BaseSensor;
 import io.onemfive.sensors.SensorManager;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.websocket.api.WebSocketPolicy;
+import org.eclipse.jetty.websocket.server.WebSocketHandler;
+import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
 /**
  * Sets up HTTP server listeners.
@@ -42,6 +47,11 @@ public final class ClearnetServerSensor extends BaseSensor {
      *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler, relative resource directory|n,...}
      */
     public static final String SERVERS_CONFIG = "1m5.sensors.clearnet.server.config";
+    /**
+     * Configuration of WebSockets in the form:
+     *      name, port, launch on start, concrete implementation of
+     */
+    public static final String WEBSOCKETS_CONFIG = "1m5.sensors.clearnet.server.websockets.config";
 
     private static final Logger LOG = Logger.getLogger(ClearnetServerSensor.class.getName());
 
@@ -153,7 +163,20 @@ public final class ClearnetServerSensor extends BaseSensor {
             LOG.info("Building servers configuration: "+serversConfig);
             String[] servers = serversConfig.split(":");
             LOG.info("Number of servers to start: "+servers.length);
+            String socketsConfig = null;
+            String[] sockets = null;
+            int index = 0;
+            if(properties.getProperty(WEBSOCKETS_CONFIG)!=null) {
+                socketsConfig = properties.getProperty(WEBSOCKETS_CONFIG);
+                LOG.info("Adding sockets configuration: "+socketsConfig);
+                if(socketsConfig!=null) {
+                    sockets = socketsConfig.split(":");
+                    LOG.info("Number of sockets to start: "+sockets.length);
+                }
+            }
             for(String s : servers) {
+                HandlerCollection handlers = new HandlerCollection();
+
                 String[] m = s.split(",");
                 String name = m[0];
                 if(name==null){
@@ -190,11 +213,39 @@ public final class ClearnetServerSensor extends BaseSensor {
                 resourceHandler.setWelcomeFiles(new String[]{"index.html"});
                 resourceHandler.setResourceBase(webDir);
 
-                HandlerCollection handlers = new HandlerCollection();
+                ContextHandler wsContext = null;
+                if(sockets!=null && sockets.length > index) {
+                    WebSocketHandler wsHandler = new WebSocketHandler() {
+                        @Override
+                        public void configure(WebSocketServletFactory factory) {
+                            WebSocketPolicy policy = factory.getPolicy();
+                            // set a 10 second timeout
+                            policy.setIdleTimeout(10 * 1000);
+//                            policy.setAsyncWriteTimeout(60 * 1000);
+//                            int maxSize = 100 * 1000000;
+//                            policy.setMaxBinaryMessageSize(maxSize);
+//                            policy.setMaxBinaryMessageBufferSize(maxSize);
+//                            policy.setMaxTextMessageSize(maxSize);
+//                            policy.setMaxTextMessageBufferSize(maxSize);
+
+                            // register PushSocket as the WebSocket to create on Upgrade
+                            factory.register(PushSocket.class);
+                        }
+                    };
+                    wsContext = new ContextHandler();
+                    wsContext.setContextPath("/event/*");
+                    wsContext.setHandler(wsHandler);
+                }
+
                 handlers.addHandler(sessionHandler);
-                if(spa) handlers.addHandler(new SPAHandler());
+                if(spa) {
+                    handlers.addHandler(new SPAHandler());
+                }
                 handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
+                if(wsContext!=null) {
+                    handlers.addHandler(wsContext);
+                }
                 handlers.addHandler(new DefaultHandler());
 
                 if(dataHandlerStr!=null) { // optional
@@ -219,6 +270,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                 if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
                 }
+                index++;
             }
         }
 
