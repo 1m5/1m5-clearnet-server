@@ -13,6 +13,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import io.onemfive.core.notification.NotificationService;
+import io.onemfive.core.notification.SubscriptionRequest;
+import io.onemfive.data.EventMessage;
+import io.onemfive.data.Subscription;
+import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -26,10 +31,11 @@ import io.onemfive.core.util.SystemVersion;
 import io.onemfive.data.Envelope;
 import io.onemfive.sensors.BaseSensor;
 import io.onemfive.sensors.SensorManager;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.api.WebSocketPolicy;
 import org.eclipse.jetty.websocket.server.WebSocketHandler;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
 /**
@@ -44,19 +50,16 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     /**
      * Configuration of Servers in the form:
-     *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler, relative resource directory|n,...}
+     *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler, run websocket, relative resource directory|n,...}
      */
     public static final String SERVERS_CONFIG = "1m5.sensors.clearnet.server.config";
-    /**
-     * Configuration of WebSockets in the form: enable (true|false)
-     */
-    public static final String WEBSOCKETS_CONFIG = "1m5.sensors.clearnet.server.websockets.config";
 
     private static final Logger LOG = Logger.getLogger(ClearnetServerSensor.class.getName());
 
     private boolean isTest = false;
 
     private final List<Server> servers = new ArrayList<>();
+    private JSONWebSocket jsonWebSocket = null;
     private final Map<String,AsynchronousEnvelopeHandler> handlers = new HashMap<>();
     private int nextHandlerId = 1;
 
@@ -162,31 +165,23 @@ public final class ClearnetServerSensor extends BaseSensor {
             LOG.info("Building servers configuration: "+serversConfig);
             String[] servers = serversConfig.split(":");
             LOG.info("Number of servers to start: "+servers.length);
-            String socketsConfig = null;
-            String[] sockets = null;
-            int index = 0;
-            if(properties.getProperty(WEBSOCKETS_CONFIG)!=null) {
-                socketsConfig = properties.getProperty(WEBSOCKETS_CONFIG);
-                LOG.info("Adding sockets configuration: "+socketsConfig);
-                if(socketsConfig!=null) {
-                    sockets = socketsConfig.split(":");
-                    LOG.info("Number of sockets to start: "+sockets.length);
-                }
-            }
-            for(String s : servers) {
+            // TODO: Support multiple servers
+//            for(String s : servers) {
+            if(servers.length > 0) {
+                String s = servers[0];
                 HandlerCollection handlers = new HandlerCollection();
 
                 String[] m = s.split(",");
                 String name = m[0];
                 if(name==null){
                     LOG.warning("Name must be provided for HTTP server.");
-                    continue;
+                    return false;
                 }
 
                 String portStr = m[1];
                 if(portStr==null){
                     LOG.warning("Port must be provided for HTTP server with name="+name);
-                    continue;
+                    return false;
                 }
                 int port = Integer.parseInt(portStr);
 
@@ -199,7 +194,9 @@ public final class ClearnetServerSensor extends BaseSensor {
                 String dataHandlerStr = m[4];
                 AsynchronousEnvelopeHandler dataHandler = null;
 
-                String resourceDirectory = m[5];
+                String useSocketStr = m[5];
+
+                String resourceDirectory = m[6];
                 String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
 
                 SessionHandler sessionHandler = new SessionHandler();
@@ -213,7 +210,8 @@ public final class ClearnetServerSensor extends BaseSensor {
                 resourceHandler.setResourceBase(webDir);
 
                 ContextHandler wsContext = null;
-                if(sockets!=null && sockets.length > index && "true".equals(sockets[index])) {
+                if(useSocketStr!=null && "true".equals(useSocketStr)) {
+                    jsonWebSocket = new JSONWebSocket(this);
                     WebSocketHandler wsHandler = new WebSocketHandler() {
                         @Override
                         public void configure(WebSocketServletFactory factory) {
@@ -228,11 +226,27 @@ public final class ClearnetServerSensor extends BaseSensor {
 //                            policy.setMaxTextMessageBufferSize(maxSize);
 
                             // register PushSocket as the WebSocket to create on Upgrade
-                            factory.register(PushSocket.class);
+//                            factory.register(PushSocket.class);
+                            factory.setCreator(new WebSocketCreator() {
+                                @Override
+                                public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
+                                    String query = req.getRequestURI().toString();
+                                    if ((query == null) || (query.length() <= 0)) {
+                                        try {
+                                            resp.sendForbidden("Unspecified query");
+                                        } catch (IOException e) {
+
+                                        }
+                                        return null;
+                                    }
+                                    return jsonWebSocket;
+                                }
+                            });
                         }
+
                     };
                     wsContext = new ContextHandler();
-                    wsContext.setContextPath("/event/*");
+                    wsContext.setContextPath("/event");
                     wsContext.setHandler(wsHandler);
                 }
 
@@ -256,20 +270,32 @@ public final class ClearnetServerSensor extends BaseSensor {
                         dataContext.setHandler(dataHandler);
                     } catch (InstantiationException e) {
                         LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
-                        continue;
+                        return false;
                     } catch (IllegalAccessException e) {
                         LOG.warning("Getting an IllegalAccessException while attempting to instantiate data Handler implementation class " + dataHandlerStr + ". Launch application with appropriate read access.");
-                        continue;
+                        return false;
                     } catch (ClassNotFoundException e) {
                         LOG.warning("Data Handler implementation " + dataHandlerStr + " not found. Ensure library included.");
-                        continue;
+                        return false;
                     }
                 }
 
                 if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
+                } else if(jsonWebSocket != null) {
+                    // Subscribe to Text notifications
+                    Subscription subscription = new Subscription() {
+                        @Override
+                        public void notifyOfEvent(Envelope envelope) {
+                            jsonWebSocket.pushEnvelope(envelope);
+                        }
+                    };
+                    SubscriptionRequest r = new SubscriptionRequest(EventMessage.Type.TEXT, subscription);
+                    Envelope e = Envelope.documentFactory();
+                    DLC.addData(SubscriptionRequest.class, r, e);
+                    DLC.addRoute(NotificationService.class, NotificationService.OPERATION_SUBSCRIBE, e);
+                    send(e);
                 }
-                index++;
             }
         }
 

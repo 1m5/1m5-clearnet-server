@@ -41,7 +41,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
     private String id;
     private String serviceName;
     private String[] parameters;
-    protected Map<String,Session> activeSessions = new HashMap<>();
+    protected Map<String,ClearnetSession> activeSessions = new HashMap<>();
 
     public EnvelopeJSONDataHandler() {}
 
@@ -91,12 +91,12 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
 
         // Clean out old sessions
         long now = System.currentTimeMillis();
-        List<Session> expiredSessions = new ArrayList<>();
-        for(Session session : activeSessions.values()) {
-            if(session.getLastRequestTime() + now > Session.SESSION_INACTIVITY_INTERVAL * 1000)
+        List<ClearnetSession> expiredSessions = new ArrayList<>();
+        for(ClearnetSession session : activeSessions.values()) {
+            if(session.getLastRequestTime() + now > ClearnetSession.SESSION_INACTIVITY_INTERVAL * 1000)
                 expiredSessions.add(session);
         }
-        for(Session session : expiredSessions) {
+        for(ClearnetSession session : expiredSessions) {
             activeSessions.remove(session.getId());
         }
 
@@ -104,8 +104,8 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         String sessionId = request.getSession().getId();
 //        LOG.info("Session ID: "+sessionId);
         if(activeSessions.get(sessionId) == null) {
-            request.getSession().setMaxInactiveInterval(Session.SESSION_INACTIVITY_INTERVAL);
-            activeSessions.put(sessionId, new Session(sessionId));
+            request.getSession().setMaxInactiveInterval(ClearnetSession.SESSION_INACTIVITY_INTERVAL);
+            activeSessions.put(sessionId, new ClearnetSession(sessionId));
         } else {
             activeSessions.get(sessionId).setLastRequestTime(now);
         }
@@ -140,8 +140,8 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         ClientHold hold = requests.get(e.getId());
         HttpServletResponse response = hold.getResponse();
         LOG.info("Updating session status from response...");
-        String sessionId = (String)e.getHeader(Session.class.getName());
-        Session activeSession = activeSessions.get(sessionId);
+        String sessionId = (String)e.getHeader(ClearnetSession.class.getName());
+        ClearnetSession activeSession = activeSessions.get(sessionId);
         if(activeSession==null) {
             // session expired before response received so kill
             LOG.warning("Expired session before response received: sessionId="+sessionId);
@@ -176,7 +176,7 @@ public class EnvelopeJSONDataHandler extends DefaultHandler implements Asynchron
         e.setSensitivity(Envelope.Sensitivity.LOW);
         // Must set id in header for asynchronous support
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
-        e.setHeader(Session.class.getName(), sessionId);
+        e.setHeader(ClearnetSession.class.getName(), sessionId);
 
         // Set path
         e.setCommandPath(target.startsWith("/")?target.substring(1):target); // strip leading slash if present
