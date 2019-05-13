@@ -38,7 +38,9 @@ public class JSONWebSocket extends WebSocketAdapter {
 
     @Override
     public void onWebSocketText(String message) {
+        LOG.info("WebSocket Text received: "+message);
         if(message != null && !message.equals("keep-alive")) {
+            LOG.info("Sending WebSocket text receieved to bus...");
             Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
             // Flag as LOW for HTTP
             e.setSensitivity(Envelope.Sensitivity.LOW);
