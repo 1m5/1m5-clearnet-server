@@ -44,6 +44,7 @@ public class JSONWebSocket extends WebSocketAdapter {
             DLC.addContent(message, e);
             // Add Route
             DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, e);
+            // Send to bus
             sensor.send(e);
         }
     }
