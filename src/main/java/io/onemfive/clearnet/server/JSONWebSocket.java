@@ -42,6 +42,7 @@ public class JSONWebSocket extends WebSocketAdapter {
             e.setSensitivity(Envelope.Sensitivity.LOW);
             // Add Route
             DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, e);
+            sensor.send(e);
         }
     }
 
