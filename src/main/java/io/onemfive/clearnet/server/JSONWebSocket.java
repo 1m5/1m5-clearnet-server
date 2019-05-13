@@ -6,6 +6,7 @@ import io.onemfive.data.JSONSerializable;
 import io.onemfive.data.util.DLC;
 import io.onemfive.data.util.JSONParser;
 import io.onemfive.sensors.SensorsService;
+import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 
@@ -52,9 +53,20 @@ public class JSONWebSocket extends WebSocketAdapter {
     public void pushEnvelope(Envelope e) {
         EventMessage em = DLC.getEventMessage(e);
         String json = (String)em.getMessage();
-        LOG.info("Sending Text Message to browser....");
+        LOG.info("Received Text Message to send to browser: "+JSONParser.toString(json));
+        if(session==null) {
+            LOG.warning("Jetty WebSocket session not yet established. Unable to send message.");
+            return;
+        }
         try {
-            session.getRemote().sendString(json);
+            RemoteEndpoint endpoint = session.getRemote();
+            if(endpoint==null) {
+                LOG.warning("No RemoteEndpoint found for current Jetty WebSocket session.");
+            } else {
+                LOG.info("Sending text message to browser...");
+                endpoint.sendString(json);
+                LOG.info("Text message sent to browser.");
+            }
             LOG.info("Text message sent.");
         } catch (IOException e1) {
             LOG.warning(e1.getLocalizedMessage());
