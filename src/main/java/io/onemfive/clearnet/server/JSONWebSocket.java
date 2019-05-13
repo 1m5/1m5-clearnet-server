@@ -40,6 +40,8 @@ public class JSONWebSocket extends WebSocketAdapter {
             Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
             // Flag as LOW for HTTP
             e.setSensitivity(Envelope.Sensitivity.LOW);
+            // Add Data
+            DLC.addContent(message, e);
             // Add Route
             DLC.addRoute(SensorsService.class, SensorsService.OPERATION_REPLY, e);
             sensor.send(e);
