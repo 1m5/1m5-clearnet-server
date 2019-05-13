@@ -31,8 +31,9 @@ public class JSONWebSocket extends WebSocketAdapter {
 
     @Override
     public void onWebSocketConnect(Session session) {
-        LOG.info("+++ Websocket Connect from " + session.getRemoteAddress().getAddress());
+        LOG.info("+++ Websocket Connect...");
         this.session = session;
+        LOG.info("Host: "+session.getRemoteAddress().getAddress().getCanonicalHostName());
     }
 
     @Override
