@@ -2,7 +2,6 @@ package io.onemfive.clearnet.server;
 
 import io.onemfive.data.Envelope;
 import io.onemfive.data.EventMessage;
-import io.onemfive.data.JSONSerializable;
 import io.onemfive.data.util.DLC;
 import io.onemfive.data.util.JSONParser;
 import io.onemfive.sensors.SensorsService;
@@ -18,20 +17,20 @@ import java.util.logging.Logger;
  *
  * @author objectorange
  */
-public class JSONWebSocket extends WebSocketAdapter {
+public class EnvelopeWebSocket extends WebSocketAdapter {
 
-    private static Logger LOG = Logger.getLogger(JSONWebSocket.class.getName());
+    private static Logger LOG = Logger.getLogger(EnvelopeWebSocket.class.getName());
 
     protected ClearnetServerSensor sensor;
     protected Session session;
 
-    public JSONWebSocket(ClearnetServerSensor sensor) {
+    public EnvelopeWebSocket(ClearnetServerSensor sensor) {
         this.sensor = sensor;
     }
 
     @Override
     public void onWebSocketConnect(Session session) {
-        LOG.info("+++ Websocket Connect...");
+        LOG.info("+++ WebSocket Connect...");
         this.session = session;
         LOG.info("Host: "+session.getRemoteAddress().getAddress().getCanonicalHostName());
     }
@@ -70,7 +69,6 @@ public class JSONWebSocket extends WebSocketAdapter {
                 endpoint.sendString(json);
                 LOG.info("Text message sent to browser.");
             }
-            LOG.info("Text message sent.");
         } catch (IOException e1) {
             LOG.warning(e1.getLocalizedMessage());
         }

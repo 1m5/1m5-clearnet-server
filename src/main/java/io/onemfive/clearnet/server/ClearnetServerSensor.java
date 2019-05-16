@@ -59,7 +59,7 @@ public final class ClearnetServerSensor extends BaseSensor {
     private boolean isTest = false;
 
     private final List<Server> servers = new ArrayList<>();
-    private JSONWebSocket jsonWebSocket = null;
+    private EnvelopeWebSocket webSocket = null;
     private final Map<String,AsynchronousEnvelopeHandler> handlers = new HashMap<>();
     private int nextHandlerId = 1;
 
@@ -109,7 +109,7 @@ public final class ClearnetServerSensor extends BaseSensor {
         LOG.info("Reply to ClearnetServerSensor; forwarding to registered handler...");
         String handlerId = (String)e.getHeader(HANDLER_ID);
         if(handlerId == null) {
-            LOG.warning("Handler id="+handlerId+" not found in Envelope header. Ensure this is placed in the Envelope header="+HANDLER_ID);
+            LOG.warning("Handler id not found in Envelope header. Ensure this is placed in the Envelope header="+HANDLER_ID);
             sensorManager.suspend(e);
             return false;
         }
@@ -165,9 +165,9 @@ public final class ClearnetServerSensor extends BaseSensor {
             LOG.info("Building servers configuration: "+serversConfig);
             String[] servers = serversConfig.split(":");
             LOG.info("Number of servers to start: "+servers.length);
-            // TODO: Support multiple servers
-//            for(String s : servers) {
             if(servers.length > 0) {
+                // TODO: Support multiple servers?
+//            for(String s : servers) {
                 String s = servers[0];
                 HandlerCollection handlers = new HandlerCollection();
 
@@ -194,30 +194,51 @@ public final class ClearnetServerSensor extends BaseSensor {
                 String dataHandlerStr = m[4];
                 AsynchronousEnvelopeHandler dataHandler = null;
 
-                String useSocketStr = m[5];
+                String resourceDirectory = m[5];
+                URL webDirURL = this.getClass().getClassLoader().getResource(resourceDirectory);
 
-                String resourceDirectory = m[6];
-                String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
+                String useSocketStr = m[6];
+                String webSocketAdapter = m[7];
+                // TODO: Make Web Socket context path configurable
 
                 SessionHandler sessionHandler = new SessionHandler();
 
+                // TODO: Make data context path configurable
                 ContextHandler dataContext = new ContextHandler();
                 dataContext.setContextPath("/data/*");
 
                 ResourceHandler resourceHandler = new ResourceHandler();
                 resourceHandler.setDirectoriesListed(false);
                 resourceHandler.setWelcomeFiles(new String[]{"index.html"});
-                resourceHandler.setResourceBase(webDir);
+                if(webDirURL != null) {
+                    resourceHandler.setResourceBase(webDirURL.toExternalForm());
+                }
 
                 ContextHandler wsContext = null;
-                if(useSocketStr!=null && "true".equals(useSocketStr)) {
-                    jsonWebSocket = new JSONWebSocket(this);
-                    WebSocketHandler wsHandler = new WebSocketHandler() {
-                        @Override
-                        public void configure(WebSocketServletFactory factory) {
-                            WebSocketPolicy policy = factory.getPolicy();
-                            // set a 10 second timeout
-                            policy.setIdleTimeout(10 * 1000);
+                if("true".equals(useSocketStr)) {
+                    if(webSocketAdapter == null) {
+                        webSocket = new EnvelopeWebSocket(this);
+                        LOG.info("No custom EnvelopWebSocket class provided; using generic one.");
+                    } else {
+                        try {
+                            webSocket = (EnvelopeWebSocket)Class.forName(webSocketAdapter).newInstance();
+                        } catch (InstantiationException e) {
+                            LOG.warning("Unable to instantiate WebSocket of type: "+webSocketAdapter);
+                        } catch (IllegalAccessException e) {
+                            LOG.warning("Illegal Access caught when attempting to instantiate WebSocket of type: "+webSocketAdapter);
+                        } catch (ClassNotFoundException e) {
+                            LOG.warning("WebSocket class "+webSocketAdapter+" not found. Unable to instantiate.");
+                        }
+                    }
+                    if(webSocket == null) {
+                        LOG.warning("WebSocket configured to be launched yet unable to instantiate.");
+                    } else {
+                        WebSocketHandler wsHandler = new WebSocketHandler() {
+                            @Override
+                            public void configure(WebSocketServletFactory factory) {
+                                WebSocketPolicy policy = factory.getPolicy();
+                                // set a 10 second timeout
+                                policy.setIdleTimeout(10 * 1000);
 //                            policy.setAsyncWriteTimeout(60 * 1000);
 //                            int maxSize = 100 * 1000000;
 //                            policy.setMaxBinaryMessageSize(maxSize);
@@ -225,29 +246,30 @@ public final class ClearnetServerSensor extends BaseSensor {
 //                            policy.setMaxTextMessageSize(maxSize);
 //                            policy.setMaxTextMessageBufferSize(maxSize);
 
-                            // register PushSocket as the WebSocket to create on Upgrade
+                                // register PushSocket as the WebSocket to create on Upgrade
 //                            factory.register(PushSocket.class);
-                            factory.setCreator(new WebSocketCreator() {
-                                @Override
-                                public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
-                                    String query = req.getRequestURI().toString();
-                                    if ((query == null) || (query.length() <= 0)) {
-                                        try {
-                                            resp.sendForbidden("Unspecified query");
-                                        } catch (IOException e) {
+                                factory.setCreator(new WebSocketCreator() {
+                                    @Override
+                                    public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
+                                        String query = req.getRequestURI().toString();
+                                        if ((query == null) || (query.length() <= 0)) {
+                                            try {
+                                                resp.sendForbidden("Unspecified query");
+                                            } catch (IOException e) {
 
+                                            }
+                                            return null;
                                         }
-                                        return null;
+                                        return webSocket;
                                     }
-                                    return jsonWebSocket;
-                                }
-                            });
-                        }
+                                });
+                            }
 
-                    };
-                    wsContext = new ContextHandler();
-                    wsContext.setContextPath("/event");
-                    wsContext.setHandler(wsHandler);
+                        };
+                        wsContext = new ContextHandler();
+                        wsContext.setContextPath("/event");
+                        wsContext.setHandler(wsHandler);
+                    }
                 }
 
                 handlers.addHandler(sessionHandler);
@@ -282,12 +304,12 @@ public final class ClearnetServerSensor extends BaseSensor {
 
                 if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
-                } else if(jsonWebSocket != null) {
+                } else if(webSocket != null) {
                     // Subscribe to Text notifications
                     Subscription subscription = new Subscription() {
                         @Override
                         public void notifyOfEvent(Envelope envelope) {
-                            jsonWebSocket.pushEnvelope(envelope);
+                            webSocket.pushEnvelope(envelope);
                         }
                     };
                     SubscriptionRequest r = new SubscriptionRequest(EventMessage.Type.TEXT, subscription);
