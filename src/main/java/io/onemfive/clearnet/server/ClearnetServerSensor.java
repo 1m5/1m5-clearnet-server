@@ -303,6 +303,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                 if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
                 } else if(webSocket != null) {
+                    LOG.info("Subscribing WebSocket ("+webSocket.getClass().getName()+") to TEXT notifications...");
                     // Subscribe to Text notifications
                     Subscription subscription = new Subscription() {
                         @Override
