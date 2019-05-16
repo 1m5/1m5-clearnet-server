@@ -30,6 +30,7 @@ public class EnvelopeWebSocket extends WebSocketAdapter {
 
     @Override
     public void onWebSocketConnect(Session session) {
+        super.onWebSocketConnect(session);
         LOG.info("+++ WebSocket Connect...");
         this.session = session;
         LOG.info("Host: "+session.getRemoteAddress().getAddress().getCanonicalHostName());
