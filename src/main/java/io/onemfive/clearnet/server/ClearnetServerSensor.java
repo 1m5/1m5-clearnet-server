@@ -237,8 +237,8 @@ public final class ClearnetServerSensor extends BaseSensor {
                             @Override
                             public void configure(WebSocketServletFactory factory) {
                                 WebSocketPolicy policy = factory.getPolicy();
-                                // set a 10 second timeout
-                                policy.setIdleTimeout(10 * 1000);
+                                // set a one minute timeout
+                                policy.setIdleTimeout(60 * 1000);
 //                            policy.setAsyncWriteTimeout(60 * 1000);
 //                            int maxSize = 100 * 1000000;
 //                            policy.setMaxBinaryMessageSize(maxSize);
@@ -246,8 +246,6 @@ public final class ClearnetServerSensor extends BaseSensor {
 //                            policy.setMaxTextMessageSize(maxSize);
 //                            policy.setMaxTextMessageBufferSize(maxSize);
 
-                                // register PushSocket as the WebSocket to create on Upgrade
-//                            factory.register(PushSocket.class);
                                 factory.setCreator(new WebSocketCreator() {
                                     @Override
                                     public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
@@ -267,7 +265,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
                         };
                         wsContext = new ContextHandler();
-                        wsContext.setContextPath("/event");
+                        wsContext.setContextPath("/events/*");
                         wsContext.setHandler(wsHandler);
                     }
                 }
