@@ -13,7 +13,15 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 /**
- * TODO: Add Description
+ * Handles incoming web requests from browsers by sending text within
+ * a Low Sensitivity Envelope to the bus.
+ *
+ * Handles Envelope events from bus Notification Service by using
+ * Session to send their event body as text to browser (push).
+ *
+ * Jetty sets Session through onWebSocketConnect().
+ *
+ * Feel free to extend overriding onWebSocketText() and pushEnvelope().
  *
  * @author objectorange
  */
@@ -61,23 +69,28 @@ public class EnvelopeWebSocket extends WebSocketAdapter {
 
     public void pushEnvelope(Envelope e) {
         EventMessage em = DLC.getEventMessage(e);
-        String json = (String)em.getMessage();
-        LOG.info("Received Text Message to send to browser: "+JSONParser.toString(json));
-        if(session==null) {
-            LOG.warning("Jetty WebSocket session not yet established. Unable to send message.");
-            return;
-        }
-        try {
-            RemoteEndpoint endpoint = session.getRemote();
-            if(endpoint==null) {
-                LOG.warning("No RemoteEndpoint found for current Jetty WebSocket session.");
-            } else {
-                LOG.info("Sending text message to browser...");
-                endpoint.sendString(json);
-                LOG.info("Text message sent to browser.");
+        Object obj = em.getMessage();
+        if(obj instanceof String) {
+            String txt = (String)obj;
+            LOG.info("Received Text Message to send to browser: " + txt);
+            if (session == null) {
+                LOG.warning("Jetty WebSocket session not yet established. Unable to send message.");
+                return;
             }
-        } catch (IOException e1) {
-            LOG.warning(e1.getLocalizedMessage());
+            try {
+                RemoteEndpoint endpoint = session.getRemote();
+                if (endpoint == null) {
+                    LOG.warning("No RemoteEndpoint found for current Jetty WebSocket session.");
+                } else {
+                    LOG.info("Sending text message to browser...");
+                    endpoint.sendString(txt);
+                    LOG.info("Text message sent to browser.");
+                }
+            } catch (IOException ex) {
+                LOG.warning(ex.getLocalizedMessage());
+            }
+        } else {
+            LOG.warning("Object received not a String and thus not handled by this adapter. Ignoring.");
         }
     }
 
