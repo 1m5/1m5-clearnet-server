@@ -238,8 +238,8 @@ public final class ClearnetServerSensor extends BaseSensor {
                             @Override
                             public void configure(WebSocketServletFactory factory) {
                                 WebSocketPolicy policy = factory.getPolicy();
-                                // set a one minute timeout
-                                policy.setIdleTimeout(60 * 1000);
+                                // set a one hour timeout
+                                policy.setIdleTimeout(60 * 60 * 1000);
 //                            policy.setAsyncWriteTimeout(60 * 1000);
 //                            int maxSize = 100 * 1000000;
 //                            policy.setMaxBinaryMessageSize(maxSize);
