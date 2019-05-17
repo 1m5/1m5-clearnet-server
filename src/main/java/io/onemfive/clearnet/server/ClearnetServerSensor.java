@@ -222,6 +222,7 @@ public final class ClearnetServerSensor extends BaseSensor {
                     } else {
                         try {
                             webSocket = (EnvelopeWebSocket)Class.forName(webSocketAdapter).newInstance();
+                            webSocket.setClearnetServerSensor(this);
                         } catch (InstantiationException e) {
                             LOG.warning("Unable to instantiate WebSocket of type: "+webSocketAdapter);
                         } catch (IllegalAccessException e) {

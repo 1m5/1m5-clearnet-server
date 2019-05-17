@@ -24,7 +24,13 @@ public class EnvelopeWebSocket extends WebSocketAdapter {
     protected ClearnetServerSensor sensor;
     protected Session session;
 
+    public EnvelopeWebSocket() {}
+
     public EnvelopeWebSocket(ClearnetServerSensor sensor) {
+        this.sensor = sensor;
+    }
+
+    public void setClearnetServerSensor(ClearnetServerSensor sensor) {
         this.sensor = sensor;
     }
 
