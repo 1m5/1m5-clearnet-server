@@ -5,7 +5,7 @@
 
 	<groupId>io.onemfive</groupId>
 	<artifactId>clearnet-server</artifactId>
-	<version>0.6.0</version>
+	<version>0.6.1</version>
 
 	<packaging>jar</packaging>
 
@@ -18,20 +18,16 @@
 	<url>https://1m5.io</url>
 	<description>Invisible Matrix Services - Clearnet Server Library</description>
 	<inceptionYear>2017</inceptionYear>
-	<organization>
-		<name>1M5</name>
-		<url>https://1m5.io</url>
-	</organization>
 	<licenses>
 		<license>
-			<name>GPLv3</name>
-			<url>https://www.gnu.org/licenses/gpl-3.0.en.html</url>
+			<name>Unlicense</name>
+			<url>https://unlicense.org/</url>
 		</license>
 	</licenses>
 	<developers>
 		<developer>
 			<name>objectorange</name>
-			<email>objectorange@1m5.io</email>
+			<email>objectorange@1m5.i2p</email>
 		</developer>
 	</developers>
 	<scm>
@@ -57,7 +53,12 @@
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
-			<version>[9.4.14.v20181114,)</version>
+			<version>[9.4.17.v20190418,)</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.jetty.websocket</groupId>
+			<artifactId>javax-websocket-server-impl</artifactId>
+			<version>[9.4.15.v20190215,]</version>
 		</dependency>
 		<!-- Test -->
 		<dependency>

@@ -7,7 +7,7 @@ import io.onemfive.data.DID;
  *
  * @author objectorange
  */
-public class Session {
+public class ClearnetSession {
 
     public static int SESSION_INACTIVITY_INTERVAL = 60 * 60; // 60 minutes
 
@@ -16,7 +16,7 @@ public class Session {
     private long lastRequestTime = System.currentTimeMillis();
     private boolean authenticated = false;
 
-    public Session(String id) {
+    public ClearnetSession(String id) {
         this.id = id;
     }
 

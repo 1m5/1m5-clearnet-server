@@ -13,6 +13,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import io.onemfive.core.notification.NotificationService;
+import io.onemfive.core.notification.SubscriptionRequest;
+import io.onemfive.data.EventMessage;
+import io.onemfive.data.Subscription;
+import io.onemfive.data.util.DLC;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -26,6 +31,12 @@ import io.onemfive.core.util.SystemVersion;
 import io.onemfive.data.Envelope;
 import io.onemfive.sensors.BaseSensor;
 import io.onemfive.sensors.SensorManager;
+import org.eclipse.jetty.websocket.api.WebSocketPolicy;
+import org.eclipse.jetty.websocket.server.WebSocketHandler;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
+import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
 /**
  * Sets up HTTP server listeners.
@@ -39,7 +50,7 @@ public final class ClearnetServerSensor extends BaseSensor {
 
     /**
      * Configuration of Servers in the form:
-     *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler, relative resource directory|n,...}
+     *      name, port, launch on start, concrete implementation of io.onemfive.clearnet.server.AsynchronousEnvelopeHandler, run websocket, relative resource directory|n,...}
      */
     public static final String SERVERS_CONFIG = "1m5.sensors.clearnet.server.config";
 
@@ -48,6 +59,7 @@ public final class ClearnetServerSensor extends BaseSensor {
     private boolean isTest = false;
 
     private final List<Server> servers = new ArrayList<>();
+    private EnvelopeWebSocket webSocket = null;
     private final Map<String,AsynchronousEnvelopeHandler> handlers = new HashMap<>();
     private int nextHandlerId = 1;
 
@@ -97,7 +109,7 @@ public final class ClearnetServerSensor extends BaseSensor {
         LOG.info("Reply to ClearnetServerSensor; forwarding to registered handler...");
         String handlerId = (String)e.getHeader(HANDLER_ID);
         if(handlerId == null) {
-            LOG.warning("Handler id="+handlerId+" not found in Envelope header. Ensure this is placed in the Envelope header="+HANDLER_ID);
+            LOG.warning("Handler id not found in Envelope header. Ensure this is placed in the Envelope header="+HANDLER_ID);
             sensorManager.suspend(e);
             return false;
         }
@@ -153,18 +165,23 @@ public final class ClearnetServerSensor extends BaseSensor {
             LOG.info("Building servers configuration: "+serversConfig);
             String[] servers = serversConfig.split(":");
             LOG.info("Number of servers to start: "+servers.length);
-            for(String s : servers) {
+            if(servers.length > 0) {
+                // TODO: Support multiple servers?
+//            for(String s : servers) {
+                String s = servers[0];
+                HandlerCollection handlers = new HandlerCollection();
+
                 String[] m = s.split(",");
                 String name = m[0];
                 if(name==null){
                     LOG.warning("Name must be provided for HTTP server.");
-                    continue;
+                    return false;
                 }
 
                 String portStr = m[1];
                 if(portStr==null){
                     LOG.warning("Port must be provided for HTTP server with name="+name);
-                    continue;
+                    return false;
                 }
                 int port = Integer.parseInt(portStr);
 
@@ -178,23 +195,91 @@ public final class ClearnetServerSensor extends BaseSensor {
                 AsynchronousEnvelopeHandler dataHandler = null;
 
                 String resourceDirectory = m[5];
-                String webDir = this.getClass().getClassLoader().getResource(resourceDirectory).toExternalForm();
+                URL webDirURL = this.getClass().getClassLoader().getResource(resourceDirectory);
+
+                String useSocketStr = m[6];
+                String webSocketAdapter = m[7];
+                // TODO: Make Web Socket context path configurable
 
                 SessionHandler sessionHandler = new SessionHandler();
 
+                // TODO: Make data context path configurable
                 ContextHandler dataContext = new ContextHandler();
                 dataContext.setContextPath("/data/*");
 
                 ResourceHandler resourceHandler = new ResourceHandler();
                 resourceHandler.setDirectoriesListed(false);
                 resourceHandler.setWelcomeFiles(new String[]{"index.html"});
-                resourceHandler.setResourceBase(webDir);
+                if(webDirURL != null) {
+                    resourceHandler.setResourceBase(webDirURL.toExternalForm());
+                }
 
-                HandlerCollection handlers = new HandlerCollection();
+                ContextHandler wsContext = null;
+                if("true".equals(useSocketStr)) {
+                    if(webSocketAdapter == null) {
+                        webSocket = new EnvelopeWebSocket(this);
+                        LOG.info("No custom EnvelopWebSocket class provided; using generic one.");
+                    } else {
+                        try {
+                            webSocket = (EnvelopeWebSocket)Class.forName(webSocketAdapter).newInstance();
+                            webSocket.setClearnetServerSensor(this);
+                        } catch (InstantiationException e) {
+                            LOG.warning("Unable to instantiate WebSocket of type: "+webSocketAdapter);
+                        } catch (IllegalAccessException e) {
+                            LOG.warning("Illegal Access caught when attempting to instantiate WebSocket of type: "+webSocketAdapter);
+                        } catch (ClassNotFoundException e) {
+                            LOG.warning("WebSocket class "+webSocketAdapter+" not found. Unable to instantiate.");
+                        }
+                    }
+                    if(webSocket == null) {
+                        LOG.warning("WebSocket configured to be launched yet unable to instantiate.");
+                    } else {
+                        WebSocketHandler wsHandler = new WebSocketHandler() {
+                            @Override
+                            public void configure(WebSocketServletFactory factory) {
+                                WebSocketPolicy policy = factory.getPolicy();
+                                // set a one hour timeout
+                                policy.setIdleTimeout(60 * 60 * 1000);
+//                            policy.setAsyncWriteTimeout(60 * 1000);
+//                            int maxSize = 100 * 1000000;
+//                            policy.setMaxBinaryMessageSize(maxSize);
+//                            policy.setMaxBinaryMessageBufferSize(maxSize);
+//                            policy.setMaxTextMessageSize(maxSize);
+//                            policy.setMaxTextMessageBufferSize(maxSize);
+
+                                factory.setCreator(new WebSocketCreator() {
+                                    @Override
+                                    public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
+                                        String query = req.getRequestURI().toString();
+                                        if ((query == null) || (query.length() <= 0)) {
+                                            try {
+                                                resp.sendForbidden("Unspecified query");
+                                            } catch (IOException e) {
+
+                                            }
+                                            return null;
+                                        }
+                                        return webSocket;
+                                    }
+                                });
+                            }
+
+                        };
+                        wsContext = new ContextHandler();
+                        wsContext.setContextPath("/events/*");
+                        wsContext.setHandler(wsHandler);
+                    }
+                }
+
                 handlers.addHandler(sessionHandler);
-                if(spa) handlers.addHandler(new SPAHandler());
+                if(spa) {
+                    handlers.addHandler(new SPAHandler());
+                }
                 handlers.addHandler(dataContext);
                 handlers.addHandler(resourceHandler);
+                if(wsContext!=null) {
+                    handlers.addHandler(wsContext);
+                }
                 handlers.addHandler(new DefaultHandler());
 
                 if(dataHandlerStr!=null) { // optional
@@ -206,18 +291,32 @@ public final class ClearnetServerSensor extends BaseSensor {
                         dataContext.setHandler(dataHandler);
                     } catch (InstantiationException e) {
                         LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
-                        continue;
+                        return false;
                     } catch (IllegalAccessException e) {
                         LOG.warning("Getting an IllegalAccessException while attempting to instantiate data Handler implementation class " + dataHandlerStr + ". Launch application with appropriate read access.");
-                        continue;
+                        return false;
                     } catch (ClassNotFoundException e) {
                         LOG.warning("Data Handler implementation " + dataHandlerStr + " not found. Ensure library included.");
-                        continue;
+                        return false;
                     }
                 }
 
                 if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
+                } else if(webSocket != null) {
+                    LOG.info("Subscribing WebSocket ("+webSocket.getClass().getName()+") to TEXT notifications...");
+                    // Subscribe to Text notifications
+                    Subscription subscription = new Subscription() {
+                        @Override
+                        public void notifyOfEvent(Envelope envelope) {
+                            webSocket.pushEnvelope(envelope);
+                        }
+                    };
+                    SubscriptionRequest r = new SubscriptionRequest(EventMessage.Type.TEXT, subscription);
+                    Envelope e = Envelope.documentFactory();
+                    DLC.addData(SubscriptionRequest.class, r, e);
+                    DLC.addRoute(NotificationService.class, NotificationService.OPERATION_SUBSCRIBE, e);
+                    send(e);
                 }
             }
         }
