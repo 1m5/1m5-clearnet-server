@@ -198,7 +198,10 @@ public final class ClearnetServerSensor extends BaseSensor {
                 URL webDirURL = this.getClass().getClassLoader().getResource(resourceDirectory);
 
                 String useSocketStr = m[6];
-                String webSocketAdapter = m[7];
+                String webSocketAdapter = null;
+                if("true".equals(useSocketStr) && m.length > 7) {
+                    webSocketAdapter = m[7];
+                }
                 // TODO: Make Web Socket context path configurable
 
                 SessionHandler sessionHandler = new SessionHandler();
