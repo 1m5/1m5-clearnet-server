@@ -165,6 +165,7 @@ public final class ClearnetServerSensor extends BaseSensor {
             LOG.info("Building servers configuration: "+serversConfig);
             String[] servers = serversConfig.split(":");
             LOG.info("Number of servers to start: "+servers.length);
+            boolean launchOnStart = false;
             if(servers.length > 0) {
                 // TODO: Support multiple servers?
 //            for(String s : servers) {
@@ -178,71 +179,100 @@ public final class ClearnetServerSensor extends BaseSensor {
                     return false;
                 }
 
-                String portStr = m[1];
-                if(portStr==null){
-                    LOG.warning("Port must be provided for HTTP server with name="+name);
+                String type = m[1];
+                if(type==null) {
+                    LOG.warning("Type must be provided for HTTP Proxy with name="+name);
+                    return false;
+                }
+
+                String portStr = m[2];
+                if (portStr == null) {
+                    LOG.warning("Port must be provided for HTTP server with name=" + name);
                     return false;
                 }
                 int port = Integer.parseInt(portStr);
 
-                String launchOnStartStr = m[2];
-                boolean launchOnStart = "true".equals(launchOnStartStr);
-
-                String spaStr = m[3];
-                boolean spa = "true".equals(spaStr);
-
-                String dataHandlerStr = m[4];
-                AsynchronousEnvelopeHandler dataHandler = null;
-
-                String resourceDirectory = m[5];
-                URL webDirURL = this.getClass().getClassLoader().getResource(resourceDirectory);
-
-                String useSocketStr = m[6];
-                String webSocketAdapter = null;
-                if("true".equals(useSocketStr) && m.length > 7) {
-                    webSocketAdapter = m[7];
-                }
-                // TODO: Make Web Socket context path configurable
-
-                SessionHandler sessionHandler = new SessionHandler();
-
-                // TODO: Make data context path configurable
-                ContextHandler dataContext = new ContextHandler();
-                dataContext.setContextPath("/data/*");
-
-                ResourceHandler resourceHandler = new ResourceHandler();
-                resourceHandler.setDirectoriesListed(false);
-                resourceHandler.setWelcomeFiles(new String[]{"index.html"});
-                if(webDirURL != null) {
-                    resourceHandler.setResourceBase(webDirURL.toExternalForm());
-                }
-
-                ContextHandler wsContext = null;
-                if("true".equals(useSocketStr)) {
-                    if(webSocketAdapter == null) {
-                        webSocket = new EnvelopeWebSocket(this);
-                        LOG.info("No custom EnvelopWebSocket class provided; using generic one.");
-                    } else {
-                        try {
-                            webSocket = (EnvelopeWebSocket)Class.forName(webSocketAdapter).newInstance();
-                            webSocket.setClearnetServerSensor(this);
-                        } catch (InstantiationException e) {
-                            LOG.warning("Unable to instantiate WebSocket of type: "+webSocketAdapter);
-                        } catch (IllegalAccessException e) {
-                            LOG.warning("Illegal Access caught when attempting to instantiate WebSocket of type: "+webSocketAdapter);
-                        } catch (ClassNotFoundException e) {
-                            LOG.warning("WebSocket class "+webSocketAdapter+" not found. Unable to instantiate.");
-                        }
+                if("proxy".equals(type)) {
+                    String kandlerStr = m[3];
+                    AsynchronousEnvelopeHandler handler = null;
+//                    handlers.addHandler(new DefaultHandler());
+                    try {
+                        handler = (AsynchronousEnvelopeHandler) Class.forName(kandlerStr).newInstance();
+                        handler.setSensor(this);
+                        handler.setServiceName(name);
+                        handler.setParameters(m);
+                        handlers.addHandler(handler);
+                    } catch (InstantiationException e) {
+                        LOG.warning("Handler must be implementation of " + AsynchronousEnvelopeHandler.class.getName() + " to ensure asynchronous replies with Envelopes gets returned to calling thread.");
+                        return false;
+                    } catch (IllegalAccessException e) {
+                        LOG.warning("Getting an IllegalAccessException while attempting to instantiate Handler implementation class " + kandlerStr + ". Launch application with appropriate read access.");
+                        return false;
+                    } catch (ClassNotFoundException e) {
+                        LOG.warning("Handler implementation " + kandlerStr + " not found. Ensure library included.");
+                        return false;
                     }
-                    if(webSocket == null) {
-                        LOG.warning("WebSocket configured to be launched yet unable to instantiate.");
-                    } else {
-                        WebSocketHandler wsHandler = new WebSocketHandler() {
-                            @Override
-                            public void configure(WebSocketServletFactory factory) {
-                                WebSocketPolicy policy = factory.getPolicy();
-                                // set a one hour timeout
-                                policy.setIdleTimeout(60 * 60 * 1000);
+                } else if("local".equals(type)) {
+
+                    String launchOnStartStr = m[3];
+                    launchOnStart = "true".equals(launchOnStartStr);
+
+                    String spaStr = m[4];
+                    boolean spa = "true".equals(spaStr);
+
+                    String dataHandlerStr = m[5];
+                    AsynchronousEnvelopeHandler dataHandler = null;
+
+                    String resourceDirectory = m[6];
+                    URL webDirURL = this.getClass().getClassLoader().getResource(resourceDirectory);
+
+                    String useSocketStr = m[7];
+
+                    String webSocketAdapter = null;
+                    if ("true".equals(useSocketStr) && m.length > 8) {
+                        webSocketAdapter = m[8];
+                    }
+                    // TODO: Make Web Socket context path configurable
+
+                    SessionHandler sessionHandler = new SessionHandler();
+
+                    // TODO: Make data context path configurable
+                    ContextHandler dataContext = new ContextHandler();
+                    dataContext.setContextPath("/data/*");
+
+                    ResourceHandler resourceHandler = new ResourceHandler();
+                    resourceHandler.setDirectoriesListed(false);
+                    resourceHandler.setWelcomeFiles(new String[]{"index.html"});
+                    if (webDirURL != null) {
+                        resourceHandler.setResourceBase(webDirURL.toExternalForm());
+                    }
+
+                    ContextHandler wsContext = null;
+                    if ("true".equals(useSocketStr)) {
+                        if (webSocketAdapter == null) {
+                            webSocket = new EnvelopeWebSocket(this);
+                            LOG.info("No custom EnvelopWebSocket class provided; using generic one.");
+                        } else {
+                            try {
+                                webSocket = (EnvelopeWebSocket) Class.forName(webSocketAdapter).newInstance();
+                                webSocket.setClearnetServerSensor(this);
+                            } catch (InstantiationException e) {
+                                LOG.warning("Unable to instantiate WebSocket of type: " + webSocketAdapter);
+                            } catch (IllegalAccessException e) {
+                                LOG.warning("Illegal Access caught when attempting to instantiate WebSocket of type: " + webSocketAdapter);
+                            } catch (ClassNotFoundException e) {
+                                LOG.warning("WebSocket class " + webSocketAdapter + " not found. Unable to instantiate.");
+                            }
+                        }
+                        if (webSocket == null) {
+                            LOG.warning("WebSocket configured to be launched yet unable to instantiate.");
+                        } else {
+                            WebSocketHandler wsHandler = new WebSocketHandler() {
+                                @Override
+                                public void configure(WebSocketServletFactory factory) {
+                                    WebSocketPolicy policy = factory.getPolicy();
+                                    // set a one hour timeout
+                                    policy.setIdleTimeout(60 * 60 * 1000);
 //                            policy.setAsyncWriteTimeout(60 * 1000);
 //                            int maxSize = 100 * 1000000;
 //                            policy.setMaxBinaryMessageSize(maxSize);
@@ -250,57 +280,58 @@ public final class ClearnetServerSensor extends BaseSensor {
 //                            policy.setMaxTextMessageSize(maxSize);
 //                            policy.setMaxTextMessageBufferSize(maxSize);
 
-                                factory.setCreator(new WebSocketCreator() {
-                                    @Override
-                                    public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
-                                        String query = req.getRequestURI().toString();
-                                        if ((query == null) || (query.length() <= 0)) {
-                                            try {
-                                                resp.sendForbidden("Unspecified query");
-                                            } catch (IOException e) {
+                                    factory.setCreator(new WebSocketCreator() {
+                                        @Override
+                                        public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
+                                            String query = req.getRequestURI().toString();
+                                            if ((query == null) || (query.length() <= 0)) {
+                                                try {
+                                                    resp.sendForbidden("Unspecified query");
+                                                } catch (IOException e) {
 
+                                                }
+                                                return null;
                                             }
-                                            return null;
+                                            return webSocket;
                                         }
-                                        return webSocket;
-                                    }
-                                });
-                            }
+                                    });
+                                }
 
-                        };
-                        wsContext = new ContextHandler();
-                        wsContext.setContextPath("/events/*");
-                        wsContext.setHandler(wsHandler);
+                            };
+                            wsContext = new ContextHandler();
+                            wsContext.setContextPath("/events/*");
+                            wsContext.setHandler(wsHandler);
+                        }
                     }
-                }
 
-                handlers.addHandler(sessionHandler);
-                if(spa) {
-                    handlers.addHandler(new SPAHandler());
-                }
-                handlers.addHandler(dataContext);
-                handlers.addHandler(resourceHandler);
-                if(wsContext!=null) {
-                    handlers.addHandler(wsContext);
-                }
-                handlers.addHandler(new DefaultHandler());
+                    handlers.addHandler(sessionHandler);
+                    if (spa) {
+                        handlers.addHandler(new SPAHandler());
+                    }
+                    handlers.addHandler(dataContext);
+                    handlers.addHandler(resourceHandler);
+                    if (wsContext != null) {
+                        handlers.addHandler(wsContext);
+                    }
+                    handlers.addHandler(new DefaultHandler());
 
-                if(dataHandlerStr!=null) { // optional
-                    try {
-                        dataHandler = (AsynchronousEnvelopeHandler) Class.forName(dataHandlerStr).newInstance();
-                        dataHandler.setSensor(this);
-                        dataHandler.setServiceName(name);
-                        dataHandler.setParameters(m);
-                        dataContext.setHandler(dataHandler);
-                    } catch (InstantiationException e) {
-                        LOG.warning("Data Handler must be implementation of "+AsynchronousEnvelopeHandler.class.getName()+" to ensure asynchronous replies with Envelopes gets returned to calling thread.");
-                        return false;
-                    } catch (IllegalAccessException e) {
-                        LOG.warning("Getting an IllegalAccessException while attempting to instantiate data Handler implementation class " + dataHandlerStr + ". Launch application with appropriate read access.");
-                        return false;
-                    } catch (ClassNotFoundException e) {
-                        LOG.warning("Data Handler implementation " + dataHandlerStr + " not found. Ensure library included.");
-                        return false;
+                    if (dataHandlerStr != null) { // optional
+                        try {
+                            dataHandler = (AsynchronousEnvelopeHandler) Class.forName(dataHandlerStr).newInstance();
+                            dataHandler.setSensor(this);
+                            dataHandler.setServiceName(name);
+                            dataHandler.setParameters(m);
+                            dataContext.setHandler(dataHandler);
+                        } catch (InstantiationException e) {
+                            LOG.warning("Data Handler must be implementation of " + AsynchronousEnvelopeHandler.class.getName() + " to ensure asynchronous replies with Envelopes gets returned to calling thread.");
+                            return false;
+                        } catch (IllegalAccessException e) {
+                            LOG.warning("Getting an IllegalAccessException while attempting to instantiate data Handler implementation class " + dataHandlerStr + ". Launch application with appropriate read access.");
+                            return false;
+                        } catch (ClassNotFoundException e) {
+                            LOG.warning("Data Handler implementation " + dataHandlerStr + " not found. Ensure library included.");
+                            return false;
+                        }
                     }
                 }
 

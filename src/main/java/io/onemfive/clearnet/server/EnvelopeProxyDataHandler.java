@@ -35,7 +35,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
     private static Logger LOG = Logger.getLogger(EnvelopeProxyDataHandler.class.getName());
 
     protected ClearnetServerSensor sensor;
-    private Map<Long,ClientHold> requests = new HashMap<>();
+    protected Map<Long,ClientHold> requests = new HashMap<>();
     private String id;
     private String serviceName;
     private String[] parameters;
@@ -293,7 +293,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
         return formData.toString();
     }
 
-    private class ClientHold {
+    protected class ClientHold {
         private Thread thread;
         private String target;
         private Request baseRequest;
@@ -301,7 +301,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
         private HttpServletResponse response;
         private Envelope envelope;
 
-        private ClientHold(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response, Envelope envelope) {
+        public ClientHold(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response, Envelope envelope) {
             this.target = target;
             this.baseRequest = baseRequest;
             this.request = request;
@@ -309,7 +309,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
             this.envelope = envelope;
         }
 
-        private void hold(long waitTimeMs) {
+        public void hold(long waitTimeMs) {
             thread = Thread.currentThread();
             try {
                 Thread.sleep(waitTimeMs);
@@ -318,27 +318,27 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
             }
         }
 
-        private void wake() {
+        public void wake() {
             thread.interrupt();
         }
 
-        private String getTarget() {
+        public String getTarget() {
             return target;
         }
 
-        private Request getBaseRequest() {
+        public Request getBaseRequest() {
             return baseRequest;
         }
 
-        private HttpServletRequest getRequest() {
+        public HttpServletRequest getRequest() {
             return request;
         }
 
-        private HttpServletResponse getResponse() {
+        public HttpServletResponse getResponse() {
             return response;
         }
 
-        private Envelope getEnvelope() {
+        public Envelope getEnvelope() {
             return envelope;
         }
     }
