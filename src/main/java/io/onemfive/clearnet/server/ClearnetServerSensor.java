@@ -375,13 +375,14 @@ public final class ClearnetServerSensor extends BaseSensor {
     private boolean startServer(String name, int port, Handler dataHandler, boolean launch) {
         Server server = new Server(new InetSocketAddress("127.0.0.1", port));
         server.setHandler(dataHandler);
+        LOG.info("Starting HTTP Server for "+name+" on 127.0.0.1:"+port);
         try {
             server.start();
-//            LOG.info(server.dump());
+//            LOG.finest(server.dump());
             servers.add(server);
-            LOG.info("HTTP Server for "+name+" UI started on 127.0.0.1:"+port);
+            LOG.info("HTTP Server for "+name+" started on 127.0.0.1:"+port);
         } catch (Exception e) {
-            LOG.severe("Exception caught while starting HTTP Server for "+name+" UI: "+e.getLocalizedMessage());
+            LOG.severe("Exception caught while starting HTTP Server for "+name+" with port "+port+": "+e.getLocalizedMessage());
             e.printStackTrace();
             return false;
         }
