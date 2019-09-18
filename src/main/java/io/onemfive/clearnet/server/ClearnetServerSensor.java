@@ -18,6 +18,7 @@ import io.onemfive.core.notification.SubscriptionRequest;
 import io.onemfive.data.EventMessage;
 import io.onemfive.data.Subscription;
 import io.onemfive.data.util.DLC;
+import io.onemfive.sensors.SensorStatus;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -126,6 +127,7 @@ public final class ClearnetServerSensor extends BaseSensor {
     @Override
     public boolean start(Properties p) {
         LOG.info("Starting...");
+        updateStatus(SensorStatus.INITIALIZING);
         Config.logProperties(p);
         try {
             properties = Config.loadFromClasspath("clearnet-server.config", p, false);
@@ -133,6 +135,7 @@ public final class ClearnetServerSensor extends BaseSensor {
             LOG.warning(e.getLocalizedMessage());
         }
 
+        updateStatus(SensorStatus.STARTING);
         if("true".equals(properties.getProperty(Config.PROP_UI))) {
             String webDir = this.getClass().getClassLoader().getResource("io/onemfive/clearnet/server/ui").toExternalForm();
             // Start HTTP Server for 1M5 UI
@@ -337,20 +340,30 @@ public final class ClearnetServerSensor extends BaseSensor {
 
                 if(!startServer(name, port, handlers, launchOnStart)) {
                     LOG.warning("Unable to start server "+name);
-                } else if(webSocket != null) {
-                    LOG.info("Subscribing WebSocket ("+webSocket.getClass().getName()+") to TEXT notifications...");
-                    // Subscribe to Text notifications
-                    Subscription subscription = new Subscription() {
-                        @Override
-                        public void notifyOfEvent(Envelope envelope) {
-                            webSocket.pushEnvelope(envelope);
+                    updateStatus(SensorStatus.ERROR);
+                } else {
+                    if(webSocket != null) {
+                        LOG.info("Subscribing WebSocket ("+webSocket.getClass().getName()+") to TEXT notifications...");
+                        // Subscribe to Text notifications
+                        Subscription subscription = new Subscription() {
+                            @Override
+                            public void notifyOfEvent(Envelope envelope) {
+                                webSocket.pushEnvelope(envelope);
+                            }
+                        };
+                        SubscriptionRequest r = new SubscriptionRequest(EventMessage.Type.TEXT, subscription);
+                        Envelope e = Envelope.documentFactory();
+                        DLC.addData(SubscriptionRequest.class, r, e);
+                        DLC.addRoute(NotificationService.class, NotificationService.OPERATION_SUBSCRIBE, e);
+                        if(send(e)) {
+                            updateStatus(SensorStatus.NETWORK_CONNECTED);
+                        } else {
+                            updateStatus(SensorStatus.ERROR);
+                            LOG.warning("Error sending subscription request to Notification Service for Web Socket.");
                         }
-                    };
-                    SubscriptionRequest r = new SubscriptionRequest(EventMessage.Type.TEXT, subscription);
-                    Envelope e = Envelope.documentFactory();
-                    DLC.addData(SubscriptionRequest.class, r, e);
-                    DLC.addRoute(NotificationService.class, NotificationService.OPERATION_SUBSCRIBE, e);
-                    send(e);
+                    } else {
+                        updateStatus(SensorStatus.NETWORK_CONNECTED);
+                    }
                 }
             }
         }
