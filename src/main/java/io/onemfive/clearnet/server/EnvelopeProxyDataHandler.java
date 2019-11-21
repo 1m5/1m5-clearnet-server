@@ -35,12 +35,14 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
     private static Logger LOG = Logger.getLogger(EnvelopeProxyDataHandler.class.getName());
 
     protected ClearnetServerSensor sensor;
-    private Map<Long,ClientHold> requests = new HashMap<>();
+    protected Map<Long,ClientHold> requests = new HashMap<>();
     private String id;
     private String serviceName;
     private String[] parameters;
 
-    public EnvelopeProxyDataHandler() {}
+    public EnvelopeProxyDataHandler() {
+
+    }
 
     public void setSensor(ClearnetServerSensor sensor) {
         this.sensor = sensor;
@@ -107,6 +109,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
     }
 
     public void reply(Envelope e) {
+        LOG.info("Reply received...");
         ClientHold hold = requests.get(e.getId());
         if(hold==null) {
             LOG.warning("Hold not found.");
@@ -127,16 +130,25 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
     }
 
     protected Envelope parseEnvelope(HttpServletRequest request) {
-//        LOG.info("Parsing request into Envelope...");
-
+        LOG.info("Parsing request into Envelope...");
         Envelope e = Envelope.documentFactory();
         // Flag as LOW for HTTP - this is required to ensure ClearnetServerSensor is selected in reply
         e.setSensitivity(Envelope.Sensitivity.LOW);
         // Must set id in header for asynchronous support
         e.setHeader(ClearnetServerSensor.HANDLER_ID, id);
-
+        String uri = request.getRequestURI();
+        LOG.info("URI:"+uri);
+        boolean http = uri.startsWith("http://");
+        boolean https = uri.startsWith("https://");
+        if(!http && !https) {
+            if(uri.contains(":443")) {
+                uri = "https://" + uri;
+            } else {
+                uri = "http://" + uri;
+            }
+        }
         try {
-            URL url = new URL(request.getRequestURI());
+            URL url = new URL(uri);
             e.setURL(url);
         } catch (MalformedURLException e1) {
             LOG.warning(e1.getLocalizedMessage());
@@ -293,7 +305,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
         return formData.toString();
     }
 
-    private class ClientHold {
+    protected class ClientHold {
         private Thread thread;
         private String target;
         private Request baseRequest;
@@ -301,7 +313,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
         private HttpServletResponse response;
         private Envelope envelope;
 
-        private ClientHold(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response, Envelope envelope) {
+        public ClientHold(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response, Envelope envelope) {
             this.target = target;
             this.baseRequest = baseRequest;
             this.request = request;
@@ -309,7 +321,7 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
             this.envelope = envelope;
         }
 
-        private void hold(long waitTimeMs) {
+        public void hold(long waitTimeMs) {
             thread = Thread.currentThread();
             try {
                 Thread.sleep(waitTimeMs);
@@ -318,27 +330,27 @@ public class EnvelopeProxyDataHandler extends DefaultHandler implements Asynchro
             }
         }
 
-        private void wake() {
+        public void wake() {
             thread.interrupt();
         }
 
-        private String getTarget() {
+        public String getTarget() {
             return target;
         }
 
-        private Request getBaseRequest() {
+        public Request getBaseRequest() {
             return baseRequest;
         }
 
-        private HttpServletRequest getRequest() {
+        public HttpServletRequest getRequest() {
             return request;
         }
 
-        private HttpServletResponse getResponse() {
+        public HttpServletResponse getResponse() {
             return response;
         }
 
-        private Envelope getEnvelope() {
+        public Envelope getEnvelope() {
             return envelope;
         }
     }
